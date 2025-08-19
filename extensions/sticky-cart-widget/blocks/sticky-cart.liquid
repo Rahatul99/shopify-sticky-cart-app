@@ -1,0 +1,35 @@
+{%- comment -%}
+extensions/sticky-cart-widget/blocks/sticky-cart.liquid
+{%- endcomment -%}
+
+{% comment %}
+  Sticky Cart Widget Block
+  This block loads the sticky cart functionality
+{% endcomment %}
+
+{{ 'sticky-cart.js' | asset_url | script_tag }}
+
+{% comment %}
+  Optional: Add configuration via liquid variables
+{% endcomment %}
+<script>
+  window.stickyCartShop = "{{ shop.permanent_domain }}";
+</script>
+
+{% schema %}
+{
+  "name": "Sticky Cart",
+  "target": "body",
+  "javascript": "sticky-cart.js",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Sticky Cart Settings"
+    },
+    {
+      "type": "paragraph",
+      "content": "Configure your sticky cart appearance in the app dashboard."
+    }
+  ]
+}
+{% endschema %}

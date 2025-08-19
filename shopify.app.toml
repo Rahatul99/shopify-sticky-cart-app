@@ -1,0 +1,32 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "aaee4437d2006794a6bd7a1159fa119d"
+name = "sticky-cart-app"
+handle = "sticky-cart-app-2"
+application_url = "https://generations-textbook-ist-equality.trycloudflare.com"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2025-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_products"
+
+[auth]
+redirect_urls = ["https://generations-textbook-ist-equality.trycloudflare.com/auth/callback", "https://generations-textbook-ist-equality.trycloudflare.com/auth/shopify/callback", "https://generations-textbook-ist-equality.trycloudflare.com/api/auth/callback"]
+
+[pos]
+embedded = false

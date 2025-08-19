@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Shop {
+  id                 String              @id @default(cuid())
+  domain             String              @unique
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  stickyCartSettings StickyCartSettings?
+
+  @@map("shops")
+}
+
+model StickyCartSettings {
+  id                      String   @id @default(cuid())
+  shopId                  String   @unique
+  enabled                 Boolean  @default(true)
+  cartPosition            String   @default("bottom-right")
+  backgroundColor         String   @default("#000000")
+  iconColor               String   @default("#ffffff")
+  buttonRadius            Int      @default(50)
+  width                   Int      @default(80)
+  height                  Int      @default(80)
+  quantityBackgroundColor String   @default("#ff0000")
+  quantityTextColor       String   @default("#ffffff")
+  showQuantityBadge       Boolean  @default(true)
+  selectedIcon            String   @default("cart")
+  customIconUrl           String?
+  deviceVisibility        String   @default("all")
+  enableHoverAnimation    Boolean  @default(true)
+  animationType           String   @default("bounce")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  shop                    Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@map("sticky_cart_settings")
+}
+
+model Session {
+  id               String   @id
+  shop             String
+  state            String?
+  isOnline         Boolean?
+  scope            String?
+  accessToken      String?
+  expires          DateTime?
+  onlineAccessInfo Json?
+  userId           String?  // optional
+  firstName        String?  
+  lastName         String?  
+  email            String?  
+  accountOwner     Boolean? @default(false)
+  locale           String?  
+  collaborator     Boolean? @default(false)
+  emailVerified    Boolean? @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
