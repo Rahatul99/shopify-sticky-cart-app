@@ -2,7 +2,7 @@ import prisma from "../db.server";
 
 // const prisma = new PrismaClient();
 
-console.log("Prisma models available:", Object.keys(prisma));
+// Avoid logging schema at runtime in production
 
 export async function getShop(domain) {
   return prisma.shop.findUnique({

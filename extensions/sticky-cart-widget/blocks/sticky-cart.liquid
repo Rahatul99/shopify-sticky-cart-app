@@ -7,20 +7,20 @@ extensions/sticky-cart-widget/blocks/sticky-cart.liquid
   This block loads the sticky cart functionality
 {% endcomment %}
 
-{{ 'sticky-cart.js' | asset_url | script_tag }}
-
 {% comment %}
-  Optional: Add configuration via liquid variables
+  Configuration variables must be available before the script executes
 {% endcomment %}
 <script>
   window.stickyCartShop = "{{ shop.permanent_domain }}";
+  window.stickyCartAppUrl = "{{ block.settings.app_url }}";
 </script>
+
+<script defer src="{{ 'sticky-cart.js' | asset_url | append: '?v=2025-08-19-7&appUrl=' | append: block.settings.app_url }}"></script>
 
 {% schema %}
 {
   "name": "Sticky Cart",
   "target": "body",
-  "javascript": "sticky-cart.js",
   "settings": [
     {
       "type": "header",
@@ -29,6 +29,12 @@ extensions/sticky-cart-widget/blocks/sticky-cart.liquid
     {
       "type": "paragraph",
       "content": "Configure your sticky cart appearance in the app dashboard."
+    },
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "App base URL (https://your-app-domain)",
+      "default": "https://your-app-domain"
     }
   ]
 }

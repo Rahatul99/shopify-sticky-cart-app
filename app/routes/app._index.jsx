@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigation, Form } from "@remix-run/react";
+import { useLoaderData, useNavigation, useActionData, Form } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -14,8 +14,9 @@ import {
   ButtonGroup,
   Frame,
   Toast,
+  PageActions,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { authenticate } from "../shopify.server";
 import {
   createOrUpdateStickyCartSettings,
@@ -77,6 +78,7 @@ export const action = async ({ request }) => {
     quantityTextColor: formData.get("quantityTextColor"),
     showQuantityBadge: formData.get("showQuantityBadge") === "true",
     selectedIcon: formData.get("selectedIcon"),
+    customIconUrl: formData.get("customIconUrl") || null,
     deviceVisibility: formData.get("deviceVisibility"),
     enableHoverAnimation: formData.get("enableHoverAnimation") === "true",
     animationType: formData.get("animationType"),
@@ -89,11 +91,50 @@ export const action = async ({ request }) => {
 
 export default function Index() {
   const { settings } = useLoaderData();
+  const actionData = useActionData();
   const navigation = useNavigation();
   const isLoading = navigation.state === "submitting";
 
   const [formSettings, setFormSettings] = useState(settings);
   const [showToast, setShowToast] = useState(false);
+
+  // Show toast once per successful submission
+  useEffect(() => {
+    if (actionData?.success) {
+      setShowToast(true);
+    }
+  }, [actionData]);
+
+  // Disable save unless something changed
+  const fieldNames = [
+    "enabled",
+    "cartPosition",
+    "backgroundColor",
+    "iconColor",
+    "buttonRadius",
+    "width",
+    "height",
+    "quantityBackgroundColor",
+    "quantityTextColor",
+    "showQuantityBadge",
+    "selectedIcon",
+    "customIconUrl",
+    "deviceVisibility",
+    "enableHoverAnimation",
+    "animationType",
+  ];
+  const normalizeForCompare = (obj) => {
+    const out = {};
+    for (const key of fieldNames) {
+      if (key === "customIconUrl") {
+        out[key] = obj?.[key] || "";
+      } else {
+        out[key] = obj?.[key];
+      }
+    }
+    return out;
+  };
+  const isDirty = JSON.stringify(normalizeForCompare(formSettings)) !== JSON.stringify(normalizeForCompare(settings));
 
   const handleSettingChange = useCallback((field, value) => {
     setFormSettings((prev) => ({
@@ -101,6 +142,10 @@ export default function Index() {
       [field]: value,
     }));
   }, []);
+
+  const handleReset = useCallback(() => {
+    setFormSettings(settings);
+  }, [settings]);
 
   const positionOptions = [
     { label: "Bottom Right", value: "bottom-right" },
@@ -149,6 +194,54 @@ export default function Index() {
       }
     };
 
+    const renderIcon = () => {
+      if (formSettings.selectedIcon === "custom" && formSettings.customIconUrl) {
+        return (
+          <img
+            src={formSettings.customIconUrl}
+            alt="cart"
+            style={{ width: 24, height: 24, objectFit: "contain" }}
+          />
+        );
+      }
+
+      const commonProps = { width: 24, height: 24, viewBox: "0 0 24 24", fill: "currentColor" };
+
+      switch (formSettings.selectedIcon) {
+        case "bag":
+          return (
+            <svg {...commonProps}>
+              <path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 15a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v12z" />
+            </svg>
+          );
+        case "basket":
+          return (
+            <svg {...commonProps}>
+              <path d="M17.21 9l-4.38-6.56a.993.993 0 0 0-.83-.42c-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27c.03-.09.04-.18.04-.27 0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
+            </svg>
+          );
+        case "cart":
+        default:
+          return (
+            <svg {...commonProps}>
+              <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+            </svg>
+          );
+      }
+    };
+
+    const getAnimationCSS = () => {
+      if (!formSettings.enableHoverAnimation || formSettings.animationType === "none") return "";
+      const base = `#dashboard-sticky-cart-preview:hover .sticky-cart-button { animation: ANIM_NAME 1s ease; }`;
+      const animations = {
+        bounce: `@keyframes bounce { 0%, 20%, 53%, 80%, 100% { transform: translateY(0px); } 40%, 43% { transform: translateY(-15px); } 70% { transform: translateY(-7px); } 90% { transform: translateY(-3px); } }`,
+        pulse: `@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }`,
+        shake: `@keyframes shake { 0%, 100% { transform: translateX(0px); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }`,
+      };
+      const name = formSettings.animationType;
+      return `${animations[name] || ""} ${base.replace("ANIM_NAME", name)}`;
+    };
+
     return (
       <div
         style={{
@@ -159,7 +252,13 @@ export default function Index() {
           border: "2px dashed #ddd",
         }}
       >
+        <style>{`
+          ${getAnimationCSS()}
+          #dashboard-sticky-cart-preview:hover .sticky-cart-button { transform: scale(1.05); box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+          #dashboard-sticky-cart-preview .sticky-cart-button svg { width: 24px; height: 24px; }
+        `}</style>
         <div
+          id="dashboard-sticky-cart-preview"
           style={{
             position: "absolute",
             width: `${formSettings.width}px`,
@@ -173,7 +272,7 @@ export default function Index() {
             fontSize: "24px",
             cursor: "pointer",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            transition: "transform 0.2s ease",
+            transition: "transform 0.2s ease, box-shadow 0.2s ease",
             ...Object.fromEntries(
               getPositionStyles()
                 .split(";")
@@ -184,42 +283,32 @@ export default function Index() {
                 .filter(([prop]) => prop),
             ),
           }}
-          onMouseEnter={(e) => {
-            if (formSettings.enableHoverAnimation) {
-              e.target.style.transform += " scale(1.1)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (formSettings.enableHoverAnimation) {
-              e.target.style.transform = e.target.style.transform.replace(
-                " scale(1.1)",
-                "",
-              );
-            }
-          }}
         >
-          <span>🛒</span>
-          {formSettings.showQuantityBadge && (
-            <div
-              style={{
-                position: "absolute",
-                top: "-5px",
-                right: "-5px",
-                backgroundColor: formSettings.quantityBackgroundColor,
-                color: formSettings.quantityTextColor,
-                borderRadius: "50%",
-                width: "24px",
-                height: "24px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "12px",
-                fontWeight: "bold",
-              }}
-            >
-              2
-            </div>
-          )}
+          <div className="sticky-cart-button" style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {renderIcon()}
+            {formSettings.showQuantityBadge && (
+              <div
+                className="quantity-badge"
+                style={{
+                  position: "absolute",
+                  top: "-5px",
+                  right: "-5px",
+                  backgroundColor: formSettings.quantityBackgroundColor,
+                  color: formSettings.quantityTextColor,
+                  borderRadius: "50%",
+                  width: "24px",
+                  height: "24px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+              >
+                2
+              </div>
+            )}
+          </div>
         </div>
         <div
           style={{
@@ -252,12 +341,21 @@ export default function Index() {
 
           <Layout.Section>
             <Form method="post">
-              <Layout>
-                <Layout.Section oneHalf>
-                  <Card sectioned title="General Settings">
+              <style>{`
+                .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+                @media (min-width: 768px) {
+                  .dashboard-grid { grid-template-columns: 1fr 1fr; align-items: start; }
+                }
+                .column-stack > * + * { margin-top: 16px; }
+                .preview-sticky { position: sticky; top: 0; z-index: 10; }
+              `}</style>
+              <div className="dashboard-grid">
+                <div className="column-stack">
+                  <Card sectioned title="General">
                     <FormLayout>
                       <Checkbox
                         label="Enable Sticky Cart"
+                        helpText="Toggle the sticky cart on or off for your storefront."
                         checked={formSettings.enabled}
                         onChange={(checked) =>
                           handleSettingChange("enabled", checked)
@@ -265,103 +363,113 @@ export default function Index() {
                       />
 
                       <Select
-                        label="Cart Position"
+                        label="Cart position"
                         options={positionOptions}
                         value={formSettings.cartPosition}
                         onChange={(value) =>
                           handleSettingChange("cartPosition", value)
                         }
+                        helpText="Choose where the button appears on the screen."
                       />
 
                       <Select
-                        label="Device Visibility"
+                        label="Device visibility"
                         options={deviceOptions}
                         value={formSettings.deviceVisibility}
                         onChange={(value) =>
                           handleSettingChange("deviceVisibility", value)
                         }
+                        helpText="Control which devices will see the sticky cart."
                       />
                     </FormLayout>
                   </Card>
 
                   <Card sectioned title="Appearance">
                     <FormLayout>
-                      <div>
-                        <Text variant="bodyMd" as="p" color="subdued">
-                          Background Color
-                        </Text>
-                        <input
-                          type="color"
-                          value={formSettings.backgroundColor}
-                          onChange={(e) =>
+                      <FormLayout.Group>
+                        <div>
+                          <Text variant="bodyMd" as="p" color="subdued">
+                            Background color
+                          </Text>
+                          <input
+                            type="color"
+                            value={formSettings.backgroundColor}
+                            onChange={(e) =>
+                              handleSettingChange(
+                                "backgroundColor",
+                                e.target.value,
+                              )
+                            }
+                            style={{
+                              width: "100%",
+                              height: "40px",
+                              border: "1px solid #ddd",
+                              borderRadius: "4px",
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Text variant="bodyMd" as="p" color="subdued">
+                            Icon color
+                          </Text>
+                          <input
+                            type="color"
+                            value={formSettings.iconColor}
+                            onChange={(e) =>
+                              handleSettingChange("iconColor", e.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              height: "40px",
+                              border: "1px solid #ddd",
+                              borderRadius: "4px",
+                            }}
+                          />
+                        </div>
+                      </FormLayout.Group>
+
+                      <FormLayout.Group>
+                        <TextField
+                          label="Button radius (%)"
+                          type="number"
+                          value={String(formSettings.buttonRadius)}
+                          onChange={(value) =>
                             handleSettingChange(
-                              "backgroundColor",
-                              e.target.value,
+                              "buttonRadius",
+                              parseInt(value) || 0,
                             )
                           }
-                          style={{
-                            width: "100%",
-                            height: "40px",
-                            border: "1px solid #ddd",
-                            borderRadius: "4px",
-                          }}
+                          min="0"
+                          max="50"
+                          helpText="Controls how round the button corners are."
                         />
-                      </div>
-
-                      <div>
-                        <Text variant="bodyMd" as="p" color="subdued">
-                          Icon Color
-                        </Text>
-                        <input
-                          type="color"
-                          value={formSettings.iconColor}
-                          onChange={(e) =>
-                            handleSettingChange("iconColor", e.target.value)
+                        <TextField
+                          label="Width (px)"
+                          type="number"
+                          value={String(formSettings.width)}
+                          onChange={(value) =>
+                            handleSettingChange(
+                              "width",
+                              parseInt(value) || 60,
+                            )
                           }
-                          style={{
-                            width: "100%",
-                            height: "40px",
-                            border: "1px solid #ddd",
-                            borderRadius: "4px",
-                          }}
+                          min="60"
+                          max="120"
                         />
-                      </div>
-
-                      <TextField
-                        label="Button Radius (%)"
-                        type="number"
-                        value={String(formSettings.buttonRadius)}
-                        onChange={(value) =>
-                          handleSettingChange(
-                            "buttonRadius",
-                            parseInt(value) || 0,
-                          )
-                        }
-                        min="0"
-                        max="50"
-                      />
-
-                      <TextField
-                        label="Width (px)"
-                        type="number"
-                        value={String(formSettings.width)}
-                        onChange={(value) =>
-                          handleSettingChange("width", parseInt(value) || 60)
-                        }
-                        min="60"
-                        max="120"
-                      />
-
-                      <TextField
-                        label="Height (px)"
-                        type="number"
-                        value={String(formSettings.height)}
-                        onChange={(value) =>
-                          handleSettingChange("height", parseInt(value) || 60)
-                        }
-                        min="60"
-                        max="120"
-                      />
+                        <TextField
+                          label="Height (px)"
+                          type="number"
+                          value={String(formSettings.height)}
+                          onChange={(value) =>
+                            handleSettingChange(
+                              "height",
+                              parseInt(value) || 60,
+                            )
+                          }
+                          min="60"
+                          max="120"
+                        />
+                      </FormLayout.Group>
                     </FormLayout>
                   </Card>
 
@@ -369,6 +477,7 @@ export default function Index() {
                     <FormLayout>
                       <Checkbox
                         label="Show Quantity Badge"
+                        helpText="Display the number of items in the cart on the button."
                         checked={formSettings.showQuantityBadge}
                         onChange={(checked) =>
                           handleSettingChange("showQuantityBadge", checked)
@@ -377,73 +486,90 @@ export default function Index() {
 
                       {formSettings.showQuantityBadge && (
                         <>
-                          <div>
-                            <Text variant="bodyMd" as="p" color="subdued">
-                              Badge Background Color
-                            </Text>
-                            <input
-                              type="color"
-                              value={formSettings.quantityBackgroundColor}
-                              onChange={(e) =>
-                                handleSettingChange(
-                                  "quantityBackgroundColor",
-                                  e.target.value,
-                                )
-                              }
-                              style={{
-                                width: "100%",
-                                height: "40px",
-                                border: "1px solid #ddd",
-                                borderRadius: "4px",
-                              }}
-                            />
-                          </div>
+                          <FormLayout.Group>
+                            <div>
+                              <Text variant="bodyMd" as="p" color="subdued">
+                                Badge background color
+                              </Text>
+                              <input
+                                type="color"
+                                value={formSettings.quantityBackgroundColor}
+                                onChange={(e) =>
+                                  handleSettingChange(
+                                    "quantityBackgroundColor",
+                                    e.target.value,
+                                  )
+                                }
+                                style={{
+                                  width: "100%",
+                                  height: "40px",
+                                  border: "1px solid #ddd",
+                                  borderRadius: "4px",
+                                }}
+                              />
+                            </div>
 
-                          <div>
-                            <Text variant="bodyMd" as="p" color="subdued">
-                              Badge Text Color
-                            </Text>
-                            <input
-                              type="color"
-                              value={formSettings.quantityTextColor}
-                              onChange={(e) =>
-                                handleSettingChange(
-                                  "quantityTextColor",
-                                  e.target.value,
-                                )
-                              }
-                              style={{
-                                width: "100%",
-                                height: "40px",
-                                border: "1px solid #ddd",
-                                borderRadius: "4px",
-                              }}
-                            />
-                          </div>
+                            <div>
+                              <Text variant="bodyMd" as="p" color="subdued">
+                                Badge text color
+                              </Text>
+                              <input
+                                type="color"
+                                value={formSettings.quantityTextColor}
+                                onChange={(e) =>
+                                  handleSettingChange(
+                                    "quantityTextColor",
+                                    e.target.value,
+                                  )
+                                }
+                                style={{
+                                  width: "100%",
+                                  height: "40px",
+                                  border: "1px solid #ddd",
+                                  borderRadius: "4px",
+                                }}
+                              />
+                            </div>
+                          </FormLayout.Group>
                         </>
                       )}
                     </FormLayout>
                   </Card>
-                </Layout.Section>
+                </div>
 
-                <Layout.Section oneHalf>
-                  <Card sectioned title="Live Preview">
-                    <StickyCartPreview />
-                  </Card>
+                <div className="column-stack">
+                  <div className="preview-sticky">
+                    <Card sectioned title="Live preview">
+                      <StickyCartPreview />
+                    </Card>
+                  </div>
 
-                  <Card sectioned title="Icon & Animation">
+                  <Card sectioned title="Icon & animation">
                     <FormLayout>
                       <Select
-                        label="Icon Type"
+                        label="Icon type"
                         options={iconOptions}
                         value={formSettings.selectedIcon}
                         onChange={(value) =>
                           handleSettingChange("selectedIcon", value)
                         }
+                        helpText="Choose a built-in icon or use a custom image."
                       />
 
+                      {formSettings.selectedIcon === "custom" && (
+                        <TextField
+                          label="Custom icon URL"
+                          value={formSettings.customIconUrl || ""}
+                          onChange={(value) =>
+                            handleSettingChange("customIconUrl", value)
+                          }
+                          placeholder="https://.../icon.png"
+                        />
+                      )}
+
                       <Checkbox
-                        label="Enable Hover Animation"
+                        label="Enable hover animation"
+                        helpText="Animate the button when hovered."
                         checked={formSettings.enableHoverAnimation}
                         onChange={(checked) =>
                           handleSettingChange("enableHoverAnimation", checked)
@@ -451,7 +577,7 @@ export default function Index() {
                       />
 
                       <Select
-                        label="Animation Type"
+                        label="Animation type"
                         options={animationOptions}
                         value={formSettings.animationType}
                         onChange={(value) =>
@@ -461,8 +587,8 @@ export default function Index() {
                       />
                     </FormLayout>
                   </Card>
-                </Layout.Section>
-              </Layout>
+                </div>
+              </div>
 
               {/* Hidden form fields */}
               <input
@@ -514,6 +640,11 @@ export default function Index() {
               />
               <input
                 type="hidden"
+                name="customIconUrl"
+                value={formSettings.customIconUrl || ""}
+              />
+              <input
+                type="hidden"
                 name="deviceVisibility"
                 value={formSettings.deviceVisibility}
               />
@@ -528,15 +659,21 @@ export default function Index() {
                 value={formSettings.animationType}
               />
 
-              <Layout.Section>
-                <div style={{ textAlign: "center", marginTop: "2rem" }}>
-                  <ButtonGroup>
-                    <Button loading={isLoading} primary submit>
-                      Save Settings
-                    </Button>
-                  </ButtonGroup>
-                </div>
-              </Layout.Section>
+              <PageActions
+                primaryAction={{
+                  content: "Save settings",
+                  submit: true,
+                  loading: isLoading,
+                  disabled: !isDirty || isLoading,
+                }}
+                secondaryActions={[
+                  {
+                    content: "Reset",
+                    onAction: handleReset,
+                    disabled: !isDirty,
+                  },
+                ]}
+              />
             </Form>
           </Layout.Section>
         </Layout>
@@ -544,6 +681,7 @@ export default function Index() {
         {showToast && (
           <Toast
             content="Settings saved successfully!"
+            duration={3000}
             onDismiss={() => setShowToast(false)}
           />
         )}

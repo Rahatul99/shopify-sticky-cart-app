@@ -1,12 +1,44 @@
 (function () {
   "use strict";
 
-  // Configuration
-  const APP_URL = "https://gardens-stroke-soma-something.trycloudflare.com"; // Replace with your actual app URL
+  // Resolve app URL dynamically to avoid race conditions with Liquid config
+  const getAppUrl = () => {
+    if (window.stickyCartAppUrl) return window.stickyCartAppUrl;
+    try {
+      const currentScript = document.currentScript || (function() {
+        const scripts = document.getElementsByTagName('script');
+        return scripts[scripts.length - 1];
+      })();
+      if (!currentScript || !currentScript.src) return "";
+      const url = new URL(currentScript.src);
+      const appUrlParam = url.searchParams.get("appUrl");
+      return appUrlParam || "";
+    } catch (_) {
+      return "";
+    }
+  };
+  const waitForAppUrl = async (timeoutMs = 2000) => {
+    const start = Date.now();
+    return new Promise((resolve) => {
+      const tick = () => {
+        const url = getAppUrl();
+        if (url || Date.now() - start > timeoutMs) {
+          resolve(url || "");
+        } else {
+          setTimeout(tick, 50);
+        }
+      };
+      tick();
+    });
+  };
 
   // Get shop domain
   const getShopDomain = () => {
-    return window.Shopify?.shop || window.location.hostname;
+    return (
+      window.stickyCartShop || // set in sticky-cart.liquid to permanent_domain (myshopify.com)
+      window.Shopify?.shop ||
+      window.location.hostname
+    );
   };
 
   // Fetch cart data
@@ -24,11 +56,22 @@
   const fetchStickyCartSettings = async () => {
     const shop = getShopDomain();
     try {
-      const response = await fetch(`${APP_URL}/api/settings/${shop}`);
+      const APP_URL = await waitForAppUrl();
+      if (!APP_URL) {
+        // Fallback to defaults if app URL isn't configured
+        return getDefaultSettings();
+      }
+      const response = await fetch(`${APP_URL}/api/settings/${shop}?ts=${Date.now()}`, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      });
       const data = await response.json();
       return data.settings || data.defaultSettings;
     } catch (error) {
       console.error("Error fetching sticky cart settings:", error);
+      // Fallback to defaults if fetching fails
       return getDefaultSettings();
     }
   };
@@ -65,7 +108,7 @@
   };
 
   // Get icon HTML
-  const getIconHTML = (iconType) => {
+  const getIconHTML = (iconType, customIconUrl) => {
     const icons = {
       cart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
         <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -77,6 +120,9 @@
         <path d="M17.21 9l-4.38-6.56a.993.993 0 0 0-.83-.42c-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27c.03-.09.04-.18.04-.27 0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
       </svg>`,
     };
+    if (iconType === "custom" && customIconUrl) {
+      return `<img src="${customIconUrl}" alt="cart" style="width:24px;height:24px;object-fit:contain;" />`;
+    }
     return icons[iconType] || icons.cart;
   };
 
@@ -136,7 +182,7 @@
   const createStickyCartHTML = (settings, cartData) => {
     const { item_count = 0 } = cartData;
     const positionStyles = getPositionStyles(settings.cartPosition);
-    const iconHTML = getIconHTML(settings.selectedIcon);
+    const iconHTML = getIconHTML(settings.selectedIcon, settings.customIconUrl);
 
     return `
       <div id="sticky-cart-widget" style="
@@ -163,7 +209,7 @@
         ">
           ${iconHTML}
           ${
-            settings.showQuantityBadge && item_count > 0
+            settings.showQuantityBadge
               ? `
             <div class="quantity-badge" style="
               position: absolute;
@@ -174,7 +220,7 @@
               border-radius: 50%;
               width: 24px;
               height: 24px;
-              display: flex;
+              display: ${item_count > 0 ? "flex" : "none"};
               align-items: center;
               justify-content: center;
               font-size: 12px;
@@ -270,7 +316,7 @@
     try {
       const settings = await fetchStickyCartSettings();
 
-      if (!settings.enabled) {
+      if (!settings || !settings.enabled) {
         return;
       }
 

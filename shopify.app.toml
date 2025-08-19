@@ -3,7 +3,7 @@
 client_id = "aaee4437d2006794a6bd7a1159fa119d"
 name = "sticky-cart-app"
 handle = "sticky-cart-app-2"
-application_url = "https://generations-textbook-ist-equality.trycloudflare.com"
+application_url = "https://latina-templates-national-police.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://generations-textbook-ist-equality.trycloudflare.com/auth/callback", "https://generations-textbook-ist-equality.trycloudflare.com/auth/shopify/callback", "https://generations-textbook-ist-equality.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://latina-templates-national-police.trycloudflare.com/auth/callback", "https://latina-templates-national-police.trycloudflare.com/auth/shopify/callback", "https://latina-templates-national-police.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
