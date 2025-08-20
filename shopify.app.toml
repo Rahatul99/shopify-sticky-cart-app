@@ -3,7 +3,7 @@
 client_id = "aaee4437d2006794a6bd7a1159fa119d"
 name = "sticky-cart-app"
 handle = "sticky-cart-app-2"
-application_url = "https://coaches-moon-qualifying-side.trycloudflare.com"
+application_url = "https://britney-prepaid-suburban-visited.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products,write_script_tags,read_script_tags"
 
 [auth]
-redirect_urls = ["https://coaches-moon-qualifying-side.trycloudflare.com/auth/callback", "https://coaches-moon-qualifying-side.trycloudflare.com/auth/shopify/callback", "https://coaches-moon-qualifying-side.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://britney-prepaid-suburban-visited.trycloudflare.com/auth/callback", "https://britney-prepaid-suburban-visited.trycloudflare.com/auth/shopify/callback", "https://britney-prepaid-suburban-visited.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

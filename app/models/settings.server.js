@@ -1,9 +1,5 @@
 import prisma from "../db.server";
 
-// const prisma = new PrismaClient();
-
-// Avoid logging schema at runtime in production
-
 export async function getShop(domain) {
   return prisma.shop.findUnique({
     where: { domain },
