@@ -1,14 +1,15 @@
 (function () {
   "use strict";
 
-  // Resolve app URL dynamically to avoid race conditions with Liquid config
   const getAppUrl = () => {
     if (window.stickyCartAppUrl) return window.stickyCartAppUrl;
     try {
-      const currentScript = document.currentScript || (function() {
-        const scripts = document.getElementsByTagName('script');
-        return scripts[scripts.length - 1];
-      })();
+      const currentScript =
+        document.currentScript ||
+        (function () {
+          const scripts = document.getElementsByTagName("script");
+          return scripts[scripts.length - 1];
+        })();
       if (!currentScript || !currentScript.src) return "";
       const url = new URL(currentScript.src);
       const appUrlParam = url.searchParams.get("appUrl");
@@ -32,51 +33,46 @@
     });
   };
 
-  // Get shop domain
   const getShopDomain = () => {
     return (
-      window.stickyCartShop || // set in sticky-cart.liquid to permanent_domain (myshopify.com)
+      window.stickyCartShop ||
       window.Shopify?.shop ||
       window.location.hostname
     );
   };
 
-  // Fetch cart data
   const fetchCartData = async () => {
     try {
       const response = await fetch("/cart.js");
       return await response.json();
     } catch (error) {
-      console.error("Error fetching cart data:", error);
       return { item_count: 0 };
     }
   };
 
-  // Fetch sticky cart settings
   const fetchStickyCartSettings = async () => {
     const shop = getShopDomain();
     try {
       const APP_URL = await waitForAppUrl();
       if (!APP_URL) {
-        // Fallback to defaults if app URL isn't configured
         return getDefaultSettings();
       }
-      const response = await fetch(`${APP_URL}/api/settings/${shop}?ts=${Date.now()}`, {
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-store",
+      const response = await fetch(
+        `${APP_URL}/api/settings/${shop}?ts=${Date.now()}`,
+        {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-store",
+          },
         },
-      });
+      );
       const data = await response.json();
       return data.settings || data.defaultSettings;
     } catch (error) {
-      console.error("Error fetching sticky cart settings:", error);
-      // Fallback to defaults if fetching fails
       return getDefaultSettings();
     }
   };
 
-  // Default settings fallback
   const getDefaultSettings = () => ({
     enabled: true,
     cartPosition: "bottom-right",
@@ -94,7 +90,6 @@
     animationType: "bounce",
   });
 
-  // Get position styles
   const getPositionStyles = (position) => {
     const positions = {
       "bottom-right": "right: 20px; bottom: 20px;",
@@ -107,7 +102,6 @@
     return positions[position] || positions["bottom-right"];
   };
 
-  // Get icon HTML
   const getIconHTML = (iconType, customIconUrl) => {
     const icons = {
       cart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -117,7 +111,7 @@
         <path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 15a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v12z"/>
       </svg>`,
       basket: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M17.21 9l-4.38-6.56a.993.993 0 0 0-.83-.42c-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27c.03-.09.04-.18.04-.27 0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+        <path d="M17.21 9l-4.38-6.56a.993.993 0 0 0-.83-.42c-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27c.03-.09.04-.18.04-.27 0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2-.9-2-2-2z"/>
       </svg>`,
     };
     if (iconType === "custom" && customIconUrl) {
@@ -126,7 +120,6 @@
     return icons[iconType] || icons.cart;
   };
 
-  // Get device visibility CSS
   const getDeviceVisibilityCSS = (visibility) => {
     switch (visibility) {
       case "mobile-only":
@@ -138,7 +131,6 @@
     }
   };
 
-  // Get animation CSS
   const getAnimationCSS = (animationType, enabled) => {
     if (!enabled || animationType === "none") return "";
 
@@ -178,11 +170,15 @@
     return animations[animationType] || "";
   };
 
-  // Create sticky cart HTML
   const createStickyCartHTML = (settings, cartData) => {
-    const { item_count = 0 } = cartData;
+    const { item_count = 0, total_price = 0 } = cartData;
     const positionStyles = getPositionStyles(settings.cartPosition);
     const iconHTML = getIconHTML(settings.selectedIcon, settings.customIconUrl);
+    const priceFormatted = (total_price / 100).toLocaleString(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+    });
 
     return `
       <div id="sticky-cart-widget" style="
@@ -206,6 +202,7 @@
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
           position: relative;
+          flex-direction: column;
         ">
           ${iconHTML}
           ${
@@ -232,12 +229,20 @@
           `
               : ""
           }
+          <div class="cart-price" style="
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: ${settings.iconColor};
+            background: transparent;
+          ">
+            ${priceFormatted}
+          </div>
         </div>
       </div>
     `;
   };
 
-  // Create and inject styles
   const injectStyles = (settings) => {
     const styleId = "sticky-cart-styles";
     let existingStyle = document.getElementById(styleId);
@@ -266,9 +271,7 @@
     document.head.appendChild(style);
   };
 
-  // Open cart drawer/page
   const openCart = () => {
-    // Try to trigger existing cart drawer first
     const cartDrawerTriggers = [
       'a[href="/cart"]',
       "[data-cart-drawer]",
@@ -286,16 +289,15 @@
       }
     }
 
-    // Fallback: redirect to cart page
     window.location.href = "/cart";
   };
 
-  // Update cart count
   const updateCartCount = async () => {
     const cartData = await fetchCartData();
     const quantityBadge = document.querySelector(
       "#sticky-cart-widget .quantity-badge",
     );
+    const cartPrice = document.querySelector("#sticky-cart-widget .cart-price");
 
     if (quantityBadge && cartData.item_count > 0) {
       quantityBadge.textContent = cartData.item_count;
@@ -304,14 +306,24 @@
       quantityBadge.style.display = cartData.item_count > 0 ? "flex" : "none";
     }
 
-    // Hide/show widget based on cart count if needed
+    if (cartPrice) {
+      const priceFormatted = (cartData.total_price / 100).toLocaleString(
+        undefined,
+        {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+        },
+      );
+      cartPrice.textContent = priceFormatted;
+    }
+
     const widget = document.getElementById("sticky-cart-widget");
     if (widget) {
-      widget.style.display = cartData.item_count > 0 ? "block" : "block"; // Always show, change as needed
+      widget.style.display = cartData.item_count > 0 ? "block" : "block";
     }
   };
 
-  // Initialize sticky cart
   const initStickyCart = async () => {
     try {
       const settings = await fetchStickyCartSettings();
@@ -322,30 +334,24 @@
 
       const cartData = await fetchCartData();
 
-      // Remove existing widget
       const existingWidget = document.getElementById("sticky-cart-widget");
       if (existingWidget) {
         existingWidget.remove();
       }
 
-      // Inject styles
       injectStyles(settings);
 
-      // Create and append widget
       const widgetHTML = createStickyCartHTML(settings, cartData);
       document.body.insertAdjacentHTML("beforeend", widgetHTML);
 
-      // Add click event
       const widget = document.getElementById("sticky-cart-widget");
       if (widget) {
         widget.addEventListener("click", openCart);
       }
 
-      // Listen for cart updates
       document.addEventListener("cart:update", updateCartCount);
       document.addEventListener("cart:refresh", updateCartCount);
 
-      // Listen for fetch interceptor (for AJAX cart updates)
       const originalFetch = window.fetch;
       window.fetch = function (...args) {
         const [url] = args;
@@ -356,17 +362,14 @@
             url.includes("/cart/update") ||
             url.includes("/cart/change")
           ) {
-            setTimeout(updateCartCount, 100); // Small delay to ensure cart is updated
+            setTimeout(updateCartCount, 100);
           }
           return response;
         });
       };
-    } catch (error) {
-      console.error("Error initializing sticky cart:", error);
-    }
+    } catch (error) {}
   };
 
-  // Wait for DOM to be ready
   const ready = (fn) => {
     if (document.readyState !== "loading") {
       fn();
@@ -375,13 +378,12 @@
     }
   };
 
-  // Initialize when ready
   ready(() => {
-    // Small delay to ensure Shopify object is available
     setTimeout(initStickyCart, 100);
   });
 
-  // Re-initialize on page changes (for SPA-like themes)
   window.addEventListener("shopify:section:load", initStickyCart);
   window.addEventListener("shopify:section:reorder", initStickyCart);
 })();
+
+
