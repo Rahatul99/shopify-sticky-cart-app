@@ -1,19 +1,30 @@
 (function () {
   "use strict";
 
+  console.log("[Sticky Cart] script loaded");
+
   const getAppUrl = () => {
     if (window.stickyCartAppUrl) return window.stickyCartAppUrl;
     try {
-      const currentScript =
-        document.currentScript ||
-        (function () {
-          const scripts = document.getElementsByTagName("script");
-          return scripts[scripts.length - 1];
-        })();
-      if (!currentScript || !currentScript.src) return "";
-      const url = new URL(currentScript.src);
+      // Try to find the actual script element for sticky-cart.js even if loaded async
+      const scripts = document.getElementsByTagName("script");
+      let srcToParse = "";
+      for (let i = 0; i < scripts.length; i++) {
+        const s = scripts[i];
+        if (s && typeof s.src === "string" && s.src.indexOf("/sticky-cart.js") !== -1) {
+          srcToParse = s.src;
+          break;
+        }
+      }
+      if (!srcToParse && document.currentScript && document.currentScript.src) {
+        srcToParse = document.currentScript.src;
+      }
+      if (!srcToParse) return "";
+
+      const url = new URL(srcToParse, window.location.href);
       const appUrlParam = url.searchParams.get("appUrl");
-      return appUrlParam || "";
+      // Fallback to the script origin if no explicit appUrl provided
+      return appUrlParam || (url.origin ? url.origin : "");
     } catch (_) {
       return "";
     }
@@ -24,6 +35,11 @@
       const tick = () => {
         const url = getAppUrl();
         if (url || Date.now() - start > timeoutMs) {
+          if (!url) {
+            console.warn("[Sticky Cart] appUrl not found after wait");
+          } else {
+            console.log("[Sticky Cart] appUrl resolved:", url);
+          }
           resolve(url || "");
         } else {
           setTimeout(tick, 50);
@@ -61,9 +77,6 @@
         `${APP_URL}/api/settings/${shop}?ts=${Date.now()}`,
         {
           cache: "no-store",
-          headers: {
-            "Cache-Control": "no-store",
-          },
         },
       );
       const data = await response.json();
@@ -379,6 +392,7 @@
   };
 
   ready(() => {
+    console.log("[Sticky Cart] DOM ready");
     setTimeout(initStickyCart, 100);
   });
 

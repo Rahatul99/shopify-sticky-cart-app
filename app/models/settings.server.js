@@ -1,30 +1,30 @@
 import prisma from "../db.server";
 
-export async function getShop(domain) {
+export const getShop = async (domain) => {
   return prisma.shop.findUnique({
     where: { domain },
     include: {
       stickyCartSettings: true,
     },
   });
-}
+};
 
-export async function createShop(domain) {
+export const createShop = async (domain) => {
   return prisma.shop.create({
     data: { domain },
     include: {
       stickyCartSettings: true,
     },
   });
-}
+};
 
-export async function getStickyCartSettings(shopId) {
+export const getStickyCartSettings = async (shopId) => {
   return prisma.stickyCartSettings.findUnique({
     where: { shopId },
   });
-}
+};
 
-export async function createOrUpdateStickyCartSettings(shopId, settings) {
+export const createOrUpdateStickyCartSettings = async (shopId, settings) => {
   return prisma.stickyCartSettings.upsert({
     where: { shopId },
     update: settings,
@@ -33,9 +33,9 @@ export async function createOrUpdateStickyCartSettings(shopId, settings) {
       ...settings,
     },
   });
-}
+};
 
-export async function getStickyCartSettingsByDomain(domain) {
+export const getStickyCartSettingsByDomain = async (domain) => {
   const shop = await prisma.shop.findUnique({
     where: { domain },
     include: {
@@ -44,4 +44,4 @@ export async function getStickyCartSettingsByDomain(domain) {
   });
 
   return shop?.stickyCartSettings;
-}
+};

@@ -1,17 +1,20 @@
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigation, useActionData, Form } from "@remix-run/react";
+import {
+  useLoaderData,
+  useNavigation,
+  useActionData,
+  Form,
+} from "@remix-run/react";
 import {
   Page,
   Layout,
   Card,
   Text,
-  Button,
   FormLayout,
   TextField,
   Select,
   Checkbox,
   Banner,
-  ButtonGroup,
   Frame,
   Toast,
   PageActions,
@@ -89,7 +92,7 @@ export const action = async ({ request }) => {
   return json({ success: true, message: "Settings saved successfully!" });
 };
 
-export default function Index() {
+const Index = () => {
   const { settings } = useLoaderData();
   const actionData = useActionData();
   const navigation = useNavigation();
@@ -134,7 +137,9 @@ export default function Index() {
     }
     return out;
   };
-  const isDirty = JSON.stringify(normalizeForCompare(formSettings)) !== JSON.stringify(normalizeForCompare(settings));
+  const isDirty =
+    JSON.stringify(normalizeForCompare(formSettings)) !==
+    JSON.stringify(normalizeForCompare(settings));
 
   const handleSettingChange = useCallback((field, value) => {
     setFormSettings((prev) => ({
@@ -195,7 +200,10 @@ export default function Index() {
     };
 
     const renderIcon = () => {
-      if (formSettings.selectedIcon === "custom" && formSettings.customIconUrl) {
+      if (
+        formSettings.selectedIcon === "custom" &&
+        formSettings.customIconUrl
+      ) {
         return (
           <img
             src={formSettings.customIconUrl}
@@ -205,7 +213,12 @@ export default function Index() {
         );
       }
 
-      const commonProps = { width: 24, height: 24, viewBox: "0 0 24 24", fill: "currentColor" };
+      const commonProps = {
+        width: 24,
+        height: 24,
+        viewBox: "0 0 24 24",
+        fill: "currentColor",
+      };
 
       switch (formSettings.selectedIcon) {
         case "bag":
@@ -231,7 +244,11 @@ export default function Index() {
     };
 
     const getAnimationCSS = () => {
-      if (!formSettings.enableHoverAnimation || formSettings.animationType === "none") return "";
+      if (
+        !formSettings.enableHoverAnimation ||
+        formSettings.animationType === "none"
+      )
+        return "";
       const base = `#dashboard-sticky-cart-preview:hover .sticky-cart-button { animation: ANIM_NAME 1s ease; }`;
       const animations = {
         bounce: `@keyframes bounce { 0%, 20%, 53%, 80%, 100% { transform: translateY(0px); } 40%, 43% { transform: translateY(-15px); } 70% { transform: translateY(-7px); } 90% { transform: translateY(-3px); } }`,
@@ -284,7 +301,17 @@ export default function Index() {
             ),
           }}
         >
-          <div className="sticky-cart-button" style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div
+            className="sticky-cart-button"
+            style={{
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             {renderIcon()}
             {formSettings.showQuantityBadge && (
               <div
@@ -448,10 +475,7 @@ export default function Index() {
                           type="number"
                           value={String(formSettings.width)}
                           onChange={(value) =>
-                            handleSettingChange(
-                              "width",
-                              parseInt(value) || 60,
-                            )
+                            handleSettingChange("width", parseInt(value) || 60)
                           }
                           min="60"
                           max="120"
@@ -461,10 +485,7 @@ export default function Index() {
                           type="number"
                           value={String(formSettings.height)}
                           onChange={(value) =>
-                            handleSettingChange(
-                              "height",
-                              parseInt(value) || 60,
-                            )
+                            handleSettingChange("height", parseInt(value) || 60)
                           }
                           min="60"
                           max="120"
@@ -688,4 +709,6 @@ export default function Index() {
       </Page>
     </Frame>
   );
-}
+};
+
+export default Index;

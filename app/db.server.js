@@ -1,3 +1,4 @@
+//This ensures a single Prisma Client instance is used across the app, avoiding connection issues.
 import { PrismaClient } from "@prisma/client";
 
 let prisma;

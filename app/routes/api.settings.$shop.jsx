@@ -1,16 +1,27 @@
-// app/routes/api/settings/[shop].jsx
 import { json } from "@remix-run/node";
-import { getStickyCartSettingsByDomain } from "../../../models/settings.server";
+import { getStickyCartSettingsByDomain } from "../models/settings.server";
 
-export async function loader({ params }) {
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  Vary: "Origin",
+};
+
+export const loader = async ({ params }) => {
   const { shop } = params;
 
   if (!shop) {
-    return json({ error: "Shop parameter is required" }, { status: 400 });
+    return json(
+      { error: "Shop parameter is required" },
+      { status: 400, headers: corsHeaders },
+    );
   }
 
   try {
-    const shopDomain = shop.includes(".myshopify.com") ? shop : `${shop}.myshopify.com`;
+    const shopDomain = shop.includes(".myshopify.com")
+      ? shop
+      : `${shop}.myshopify.com`;
 
     const settings = await getStickyCartSettingsByDomain(shopDomain);
 
@@ -37,11 +48,7 @@ export async function loader({ params }) {
         },
         {
           status: 404,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         },
       );
     }
@@ -50,9 +57,7 @@ export async function loader({ params }) {
       { settings },
       {
         headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
+          ...corsHeaders,
           "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
           Pragma: "no-cache",
         },
@@ -60,17 +65,19 @@ export async function loader({ params }) {
     );
   } catch (error) {
     console.error("Error fetching settings:", error);
-    return json({ error: "Internal server error" }, { status: 500 });
+    return json(
+      { error: "Internal server error" },
+      { status: 500, headers: corsHeaders },
+    );
   }
-}
+};
 
-export const options = () => {
-  return new Response(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
+export const action = async ({ request }) => {
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: corsHeaders,
   });
 };
