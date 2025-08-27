@@ -1,6 +1,6 @@
 import { redirect } from "@remix-run/node";
 import { Form, useLoaderData } from "@remix-run/react";
-import React from "react";
+import { useState } from "react";
 import {
   Page,
   Text,
@@ -26,7 +26,7 @@ export const loader = async ({ request }) => {
 
 const App = () => {
   const { showForm } = useLoaderData();
-  const [shopDomain, setShopDomain] = React.useState("");
+  const [shopDomain, setShopDomain] = useState("");
 
   return (
     <Page>

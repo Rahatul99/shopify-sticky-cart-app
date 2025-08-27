@@ -1,12 +1,9 @@
 (function () {
   "use strict";
 
-  console.log("[Sticky Cart] script loaded");
-
   const getAppUrl = () => {
     if (window.stickyCartAppUrl) return window.stickyCartAppUrl;
     try {
-      // Try to find the actual script element for sticky-cart.js even if loaded async
       const scripts = document.getElementsByTagName("script");
       let srcToParse = "";
       for (let i = 0; i < scripts.length; i++) {
@@ -23,7 +20,6 @@
 
       const url = new URL(srcToParse, window.location.href);
       const appUrlParam = url.searchParams.get("appUrl");
-      // Fallback to the script origin if no explicit appUrl provided
       return appUrlParam || (url.origin ? url.origin : "");
     } catch (_) {
       return "";
@@ -68,20 +64,46 @@
 
   const fetchStickyCartSettings = async () => {
     const shop = getShopDomain();
+    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const storageKey = `stickyCartSettings:${shop}`;
+    // Try cache first
+    try {
+      const cachedRaw = window.localStorage.getItem(storageKey);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached && typeof cached.expiresAt === "number" && cached.expiresAt > Date.now() && cached.data) {
+          return cached.data;
+        }
+      }
+    } catch (_) {}
+    // Fallback to network
     try {
       const APP_URL = await waitForAppUrl();
       if (!APP_URL) {
         return getDefaultSettings();
       }
-      const response = await fetch(
-        `${APP_URL}/api/settings/${shop}?ts=${Date.now()}`,
-        {
-          cache: "no-store",
-        },
-      );
+      const response = await fetch(`${APP_URL}/api/settings/${shop}`, { cache: "no-store" });
       const data = await response.json();
-      return data.settings || data.defaultSettings;
+      const settings = data.settings || data.defaultSettings || getDefaultSettings();
+
+      // Store in cache
+      try {
+        const payload = { data: settings, expiresAt: Date.now() + CACHE_TTL_MS };
+        window.localStorage.setItem(storageKey, JSON.stringify(payload));
+      } catch (_) {}
+
+      return settings;
     } catch (error) {
+      // On error, try to return stale cache if available
+      try {
+        const cachedRaw = window.localStorage.getItem(storageKey);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached && cached.data) {
+            return cached.data;
+          }
+        }
+      } catch (_) {}
       return getDefaultSettings();
     }
   };
@@ -393,7 +415,7 @@
 
   ready(() => {
     console.log("[Sticky Cart] DOM ready");
-    setTimeout(initStickyCart, 100);
+    setTimeout(initStickyCart, 0);
   });
 
   window.addEventListener("shopify:section:load", initStickyCart);

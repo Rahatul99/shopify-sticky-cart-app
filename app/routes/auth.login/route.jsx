@@ -30,7 +30,7 @@ export const action = async ({ request }) => {
   };
 };
 
-export default function Auth() {
+const Auth = () => {
   const loaderData = useLoaderData();
   const actionData = useActionData();
   const [shop, setShop] = useState("");
@@ -62,4 +62,6 @@ export default function Auth() {
       </Page>
     </PolarisAppProvider>
   );
-}
+};
+
+export default Auth;

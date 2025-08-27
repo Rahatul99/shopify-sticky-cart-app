@@ -58,8 +58,7 @@ export const loader = async ({ params }) => {
       {
         headers: {
           ...corsHeaders,
-          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-          Pragma: "no-cache",
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
         },
       },
     );

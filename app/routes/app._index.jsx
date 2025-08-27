@@ -355,7 +355,7 @@ const Index = () => {
 
   return (
     <Frame>
-      <Page title="Sticky Cart Customizer">
+      <Page title="Customize your Sticky Cart">
         <Layout>
           <Layout.Section>
             <Banner title="Customize your sticky cart" status="info">
