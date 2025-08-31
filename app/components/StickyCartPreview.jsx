@@ -1,6 +1,8 @@
 import { Card, BlockStack, Text } from "@shopify/polaris";
 
 const StickyCartPreview = ({ formSettings }) => {
+  console.log(formSettings.buttonRadius, "--------Button Radius");
+
   const getPositionStyles = () => {
     switch (formSettings.cartPosition) {
       case "bottom-left":
@@ -18,11 +20,26 @@ const StickyCartPreview = ({ formSettings }) => {
     }
   };
 
+  // Fixed border radius calculation
+  const getBorderRadius = () => {
+    const radius = formSettings.buttonRadius || 0;
+    if (radius === 0) return "0px";
+    if (radius >= 100) return "50%";
+
+    const minSide = Math.min(formSettings.width, formSettings.height);
+    const computedRadius = (radius / 100) * (minSide / 2);
+    return `${computedRadius}px`;
+  };
+
   const renderIcon = () => {
-    if (formSettings.selectedIcon === "custom" && formSettings.customIconUrl) {
+    // Handle uploaded icon first (priority over custom URL)
+    if (
+      formSettings.selectedIcon === "custom" &&
+      formSettings.uploadedIconData
+    ) {
       return (
         <img
-          src={formSettings.customIconUrl}
+          src={formSettings.uploadedIconData}
           alt="cart"
           style={{ width: 24, height: 24, objectFit: "contain" }}
         />
@@ -93,6 +110,10 @@ const StickyCartPreview = ({ formSettings }) => {
     `;
   };
 
+  const getCustomCSS = () => {
+    return formSettings.customCSS || "";
+  };
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -115,6 +136,7 @@ const StickyCartPreview = ({ formSettings }) => {
               width: 24px;
               height: 24px;
             }
+            ${getCustomCSS()}
           `}</style>
 
           <div
@@ -124,7 +146,7 @@ const StickyCartPreview = ({ formSettings }) => {
               width: `${formSettings.width}px`,
               height: `${formSettings.height}px`,
               backgroundColor: formSettings.backgroundColor,
-              borderRadius: `${formSettings.buttonRadius}%`,
+              borderRadius: getBorderRadius(),
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -145,6 +167,7 @@ const StickyCartPreview = ({ formSettings }) => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexDirection: "column",
               }}
             >
               {renderIcon()}
@@ -168,6 +191,21 @@ const StickyCartPreview = ({ formSettings }) => {
                   }}
                 >
                   2
+                </div>
+              )}
+              {formSettings.showPricing && (
+                <div
+                  className="cart-price"
+                  style={{
+                    marginTop: "4px",
+                    fontSize: `${formSettings.pricingFontSize || 12}px`,
+                    fontWeight: formSettings.pricingFontWeight || "500",
+                    color:
+                      formSettings.pricingTextColor || formSettings.iconColor,
+                    background: "transparent",
+                  }}
+                >
+                  $29.99
                 </div>
               )}
             </div>

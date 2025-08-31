@@ -120,9 +120,16 @@
     quantityTextColor: "#ffffff",
     showQuantityBadge: true,
     selectedIcon: "cart",
+    uploadedIconData: null,
+    uploadedIconType: null,
     deviceVisibility: "all",
     enableHoverAnimation: true,
     animationType: "bounce",
+    showPricing: true,
+    pricingTextColor: "#ffffff",
+    pricingFontSize: 12,
+    pricingFontWeight: "500",
+    customCSS: "",
   });
 
   const getPositionStyles = (position) => {
@@ -137,7 +144,7 @@
     return positions[position] || positions["bottom-right"];
   };
 
-  const getIconHTML = (iconType, customIconUrl) => {
+  const getIconHTML = (iconType, uploadedIconData) => {
     const icons = {
       cart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
         <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -149,9 +156,12 @@
         <path d="M17.21 9l-4.38-6.56a.993.993 0 0 0-.83-.42c-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27c.03-.09.04-.18.04-.27 0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2-.9-2-2-2z"/>
       </svg>`,
     };
-    if (iconType === "custom" && customIconUrl) {
-      return `<img src="${customIconUrl}" alt="cart" style="width:24px;height:24px;object-fit:contain;" />`;
+    
+    // Handle uploaded icon first (priority over custom URL)
+    if (iconType === "custom" && uploadedIconData) {
+      return `<img src="${uploadedIconData}" alt="cart" style="width:24px;height:24px;object-fit:contain;" />`;
     }
+    
     return icons[iconType] || icons.cart;
   };
 
@@ -208,7 +218,19 @@
   const createStickyCartHTML = (settings, cartData) => {
     const { item_count = 0, total_price = 0 } = cartData;
     const positionStyles = getPositionStyles(settings.cartPosition);
-    const iconHTML = getIconHTML(settings.selectedIcon, settings.customIconUrl);
+    const iconHTML = getIconHTML(settings.selectedIcon, settings.uploadedIconData);
+    
+    // Fixed border radius calculation
+    const getBorderRadius = () => {
+      const radius = settings.buttonRadius || 0;
+      if (radius === 0) return "0px";
+      if (radius >= 100) return "50%";
+      
+      const minSide = Math.min(settings.width, settings.height);
+      const computedRadius = (radius / 100) * (minSide / 2);
+      return `${computedRadius}px`;
+    };
+    
     const priceFormatted = (total_price / 100).toLocaleString(undefined, {
       style: "currency",
       currency: "USD",
@@ -229,7 +251,7 @@
           width: 100%;
           height: 100%;
           background-color: ${settings.backgroundColor};
-          border-radius: ${settings.buttonRadius}%;
+          border-radius: ${getBorderRadius()};
           display: flex;
           align-items: center;
           justify-content: center;
@@ -264,15 +286,21 @@
           `
               : ""
           }
-          <div class="cart-price" style="
-            margin-top: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            color: ${settings.iconColor};
-            background: transparent;
-          ">
-            ${priceFormatted}
-          </div>
+          ${
+            settings.showPricing
+              ? `
+            <div class="cart-price" style="
+              margin-top: 4px;
+              font-size: ${settings.pricingFontSize}px;
+              font-weight: ${settings.pricingFontWeight};
+              color: ${settings.pricingTextColor};
+              background: transparent;
+            ">
+              ${priceFormatted}
+            </div>
+          `
+              : ""
+          }
         </div>
       </div>
     `;
@@ -301,6 +329,8 @@
         width: 24px;
         height: 24px;
       }
+      
+      ${settings.customCSS || ""}
     `;
 
     document.head.appendChild(style);

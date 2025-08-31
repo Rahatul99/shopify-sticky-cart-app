@@ -44,6 +44,11 @@ export const loader = async ({ params }) => {
             deviceVisibility: "all",
             enableHoverAnimation: true,
             animationType: "bounce",
+            showPricing: true,
+            pricingTextColor: "#ffffff",
+            pricingFontSize: 12,
+            pricingFontWeight: "500",
+            customCSS: "",
           },
         },
         {

@@ -31,10 +31,16 @@ model StickyCartSettings {
   quantityTextColor       String   @default("#ffffff")
   showQuantityBadge       Boolean  @default(true)
   selectedIcon            String   @default("cart")
-  customIconUrl           String?
+  uploadedIconData        String?  // Base64 encoded icon data
+  uploadedIconType        String?  // MIME type of uploaded icon
   deviceVisibility        String   @default("all")
   enableHoverAnimation    Boolean  @default(true)
   animationType           String   @default("bounce")
+  showPricing            Boolean  @default(true)
+  pricingTextColor       String   @default("#ffffff")
+  pricingFontSize        Int      @default(12)
+  pricingFontWeight      String   @default("500")
+  customCSS              String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   shop                    Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)

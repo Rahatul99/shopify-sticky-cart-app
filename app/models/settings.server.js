@@ -9,6 +9,17 @@ export const getShop = async (domain) => {
   });
 };
 
+// export const getStickyCartSettingsByDomain = async (domain) => {
+//   const shop = await prisma.shop.findUnique({
+//     where: { domain },
+//     include: {
+//       stickyCartSettings: true,
+//     },
+//   });
+
+//   return shop?.stickyCartSettings;
+// };
+
 export const createShop = async (domain) => {
   return prisma.shop.create({
     data: { domain },
@@ -36,6 +47,7 @@ export const createOrUpdateStickyCartSettings = async (shopId, settings) => {
 };
 
 export const getStickyCartSettingsByDomain = async (domain) => {
+  //TODO: remove it
   const shop = await prisma.shop.findUnique({
     where: { domain },
     include: {
