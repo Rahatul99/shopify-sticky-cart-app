@@ -23,6 +23,8 @@ import {
   RangeSlider,
   Button,
   Thumbnail,
+  useBreakpoints,
+  Box,
 } from "@shopify/polaris";
 import { useState, useCallback, useEffect } from "react";
 import { authenticate } from "../shopify.server";
@@ -52,10 +54,17 @@ export const loader = async ({ request }) => {
     height: 80,
     quantityBackgroundColor: "#ff0000",
     quantityTextColor: "#ffffff",
+    quantityBadgeWidth: 24,
+    quantityBadgeHeight: 24,
+    quantityBadgeRadius: 50,
     showQuantityBadge: true,
     selectedIcon: "cart",
     uploadedIconData: null,
     uploadedIconType: null,
+    customIconWidth: 50,
+    customIconHeight: 50,
+    quantityBadgePosition: "top-right",
+    priceBackgroundColor: "transparent",
     deviceVisibility: "all",
     enableHoverAnimation: true,
     animationType: "bounce",
@@ -64,6 +73,12 @@ export const loader = async ({ request }) => {
     pricingFontSize: 12,
     pricingFontWeight: "500",
     customCSS: "",
+    // Structured Layout Settings
+    structuredTopSectionBgColor: "#6b7280",
+    structuredBottomSectionBgColor: "#f9fafb",
+    structuredItemsTextColor: "#fbbf24",
+    structuredPriceTextColor: "#374151",
+    structuredCurrencySymbol: "৳",
   };
 
   return json({
@@ -95,14 +110,20 @@ export const action = async ({ request }) => {
     height: parseInt(formData.get("height")),
     quantityBackgroundColor: formData.get("quantityBackgroundColor"),
     quantityTextColor: formData.get("quantityTextColor"),
+    quantityBadgeWidth: parseInt(formData.get("quantityBadgeWidth")) || 24,
+    quantityBadgeHeight: parseInt(formData.get("quantityBadgeHeight")) || 24,
+    quantityBadgeRadius: parseInt(formData.get("quantityBadgeRadius")) || 50,
     showQuantityBadge: formData.get("showQuantityBadge") === "true",
     selectedIcon: formData.get("selectedIcon"),
     uploadedIconData:
       selectedIcon === "custom"
         ? formData.get("uploadedIconData") || null
         : null,
-
     uploadedIconType: formData.get("uploadedIconType") || null,
+    customIconWidth: parseInt(formData.get("customIconWidth")) || 50,
+    customIconHeight: parseInt(formData.get("customIconHeight")) || 50,
+    quantityBadgePosition: formData.get("quantityBadgePosition"),
+    priceBackgroundColor: formData.get("priceBackgroundColor"),
     deviceVisibility: formData.get("deviceVisibility"),
     enableHoverAnimation: formData.get("enableHoverAnimation") === "true",
     animationType: formData.get("animationType"),
@@ -111,8 +132,17 @@ export const action = async ({ request }) => {
     pricingFontSize: parseInt(formData.get("pricingFontSize")),
     pricingFontWeight: formData.get("pricingFontWeight"),
     customCSS: formData.get("customCSS") || "",
+    // Structured Layout Settings
+    structuredTopSectionBgColor:
+      formData.get("structuredTopSectionBgColor") || "#6b7280",
+    structuredBottomSectionBgColor:
+      formData.get("structuredBottomSectionBgColor") || "#f9fafb",
+    structuredItemsTextColor:
+      formData.get("structuredItemsTextColor") || "#fbbf24",
+    structuredPriceTextColor:
+      formData.get("structuredPriceTextColor") || "#374151",
+    structuredCurrencySymbol: formData.get("structuredCurrencySymbol") || "৳",
   };
-  console.log(settings, "---------settings to save-----------");
 
   await createOrUpdateStickyCartSettings(shop.id, settings);
   return json({ success: true, message: "Settings saved successfully!" });
@@ -123,6 +153,7 @@ const Index = () => {
   const actionData = useActionData();
   const navigation = useNavigation();
   const isLoading = navigation.state === "submitting";
+  const { mdUp } = useBreakpoints();
 
   const [formSettings, setFormSettings] = useState(settings);
   const [showToast, setShowToast] = useState(false);
@@ -135,6 +166,13 @@ const Index = () => {
       setShowToast(true);
     }
   }, [actionData]);
+
+  // Ensure formSettings are properly synchronized with loaded settings
+  useEffect(() => {
+    if (settings) {
+      setFormSettings(settings);
+    }
+  }, [settings]);
 
   // Handle file upload
   const handleFileUpload = useCallback(async (file) => {
@@ -205,10 +243,17 @@ const Index = () => {
     "height",
     "quantityBackgroundColor",
     "quantityTextColor",
+    "quantityBadgeWidth",
+    "quantityBadgeHeight",
+    "quantityBadgeRadius",
     "showQuantityBadge",
     "selectedIcon",
     "uploadedIconData",
     "uploadedIconType",
+    "customIconWidth",
+    "customIconHeight",
+    "quantityBadgePosition",
+    "priceBackgroundColor",
     "deviceVisibility",
     "enableHoverAnimation",
     "animationType",
@@ -217,6 +262,12 @@ const Index = () => {
     "pricingFontSize",
     "pricingFontWeight",
     "customCSS",
+    // Structured Layout Settings
+    "structuredTopSectionBgColor",
+    "structuredBottomSectionBgColor",
+    "structuredItemsTextColor",
+    "structuredPriceTextColor",
+    "structuredCurrencySymbol",
   ];
   const normalizeForCompare = (obj) => {
     const out = {};
@@ -276,8 +327,8 @@ const Index = () => {
   // Disable save unless something changed and all required fields are valid
   const isFormValid = () => {
     if (formSettings.selectedIcon === "custom") {
-      // Check if we have either uploaded icon data or custom URL
-      if (!formSettings.uploadedIconData && !formSettings.customIconUrl) {
+      // Check if we have uploaded icon data
+      if (!formSettings.uploadedIconData) {
         return false;
       }
     }
@@ -286,28 +337,73 @@ const Index = () => {
 
   return (
     <Frame>
-      <Page title="Customize your Sticky Cart">
+      <Page
+        title="Customize your Sticky Cart"
+        subtitle="Design and configure your sticky cart to match your store's branding."
+      >
         <Layout>
-          <Layout.Section>
-            <Banner title="Customize your sticky cart" status="info">
+          <Layout.Section secondary>
+            <Banner
+              title="Changes may take a few minutes to appear"
+              status="info"
+            >
               <p>
-                Design and configure your sticky cart to match your store's
-                branding.
+                Updates to your sticky cart might not show up right away. Please
+                allow up to five minutes, as caching is used to keep your
+                storefront loading quickly.
               </p>
             </Banner>
           </Layout.Section>
 
-          <Layout.Section>
+          <Layout.Section secondary>
             <Form method="post">
-              <Grid>
-                {/* Left Column - General & Appearance */}
+              <Grid
+                columns={{ xs: 1, md: 2, lg: 2 }}
+                gap={{ xs: "400", md: "500" }}
+              >
+                {/* IMPROVED RESPONSIVE PREVIEW SECTION */}
                 <Grid.Cell
-                  order={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2 }}
-                  columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}
+                  columnSpan={{ xs: 1, md: 1 }}
+                  order={{ xs: 2, md: 1 }}
                 >
-                  <BlockStack gap="400">
+                  <Box
+                    as="div"
+                    style={{
+                      // Desktop: sticky positioning
+                      ...(mdUp && {
+                        position: "sticky",
+                        top: "20px",
+                        zIndex: 1,
+                      }),
+                      // Mobile: normal flow, no fixed positioning issues
+                      ...(!mdUp && {
+                        position: "relative",
+                        marginBottom: "20px",
+                      }),
+                    }}
+                  >
+                    <Card sectioned>
+                      <StickyCartPreview formSettings={formSettings} />
+                    </Card>
+                  </Box>
+
+                  {/* Add consistent spacing for all screen sizes */}
+                  <Box
+                    as="div"
+                    style={{
+                      height: mdUp ? "200px" : "0px", // Only add extra space on desktop for sticky effect
+                    }}
+                  />
+                </Grid.Cell>
+
+                {/* FORM SECTION - No changes needed here */}
+                <Grid.Cell
+                  columnSpan={{ xs: 1, md: 1 }}
+                  order={{ xs: 1, md: 2 }}
+                >
+                  <BlockStack gap={{ xs: "400", md: "500" }}>
                     <Card sectioned title="General">
-                      <FormLayout>
+                      <FormLayout gap={{ xs: "400", sm: "400", md: "500" }}>
                         <Checkbox
                           label="Enable Sticky Cart"
                           helpText="Toggle the sticky cart on or off for your storefront."
@@ -336,26 +432,52 @@ const Index = () => {
                         />
                       </FormLayout>
                     </Card>
-
+                    <Card sectioned title="Layout Type">
+                      <FormLayout gap={{ xs: "400", sm: "400", md: "500" }}>
+                        <Select
+                          label="Layout Type"
+                          options={[
+                            { label: "Normal Layout", value: "normal" },
+                            { label: "Structured Layout", value: "structured" },
+                          ]}
+                          value={
+                            formSettings.quantityBadgePosition === "structured"
+                              ? "structured"
+                              : "normal"
+                          }
+                          onChange={(value) => {
+                            if (value === "structured") {
+                              handleSettingChange(
+                                "quantityBadgePosition",
+                                "structured",
+                              );
+                            } else {
+                              handleSettingChange(
+                                "quantityBadgePosition",
+                                "top-right",
+                              );
+                            }
+                          }}
+                          helpText="Choose between simple normal layout or professional structured layout with two sections."
+                        />
+                      </FormLayout>
+                    </Card>
                     <Card sectioned title="Appearance">
-                      <FormLayout>
-                        <FormLayout.Group>
-                          <Text variant="bodyMd" as="p" color="subdued">
-                            Background color
-                          </Text>
+                      <FormLayout gap={{ xs: "400", sm: "400", md: "500" }}>
+                        <FormLayout.Group
+                          gap={{ xs: "400", sm: "400", md: "500" }}
+                        >
                           <TextField
                             type="color"
+                            label="Background color"
                             value={formSettings.backgroundColor}
                             onChange={(value) =>
                               handleSettingChange("backgroundColor", value)
                             }
                           />
-
-                          <Text variant="bodyMd" as="p" color="subdued">
-                            Icon color
-                          </Text>
                           <TextField
                             type="color"
+                            label="Icon color"
                             value={formSettings.iconColor}
                             onChange={(value) =>
                               handleSettingChange("iconColor", value)
@@ -399,7 +521,6 @@ const Index = () => {
                         </FormLayout.Group>
                       </FormLayout>
                     </Card>
-
                     <Card sectioned title="Quantity Badge">
                       <FormLayout>
                         <Checkbox
@@ -409,38 +530,232 @@ const Index = () => {
                           onChange={(checked) =>
                             handleSettingChange("showQuantityBadge", checked)
                           }
+                          disabled={
+                            formSettings.quantityBadgePosition === "structured"
+                          }
                         />
 
-                        {formSettings.showQuantityBadge && (
+                        {formSettings.showQuantityBadge &&
+                          formSettings.quantityBadgePosition !==
+                            "structured" && (
+                            <FormLayout.Group>
+                              <TextField
+                                type="color"
+                                label="Badge background color"
+                                value={formSettings.quantityBackgroundColor}
+                                onChange={(value) =>
+                                  handleSettingChange(
+                                    "quantityBackgroundColor",
+                                    value,
+                                  )
+                                }
+                              />
+                              <TextField
+                                type="color"
+                                label="Badge text color"
+                                value={formSettings.quantityTextColor}
+                                onChange={(value) =>
+                                  handleSettingChange(
+                                    "quantityTextColor",
+                                    value,
+                                  )
+                                }
+                              />
+                            </FormLayout.Group>
+                          )}
+
+                        {formSettings.showQuantityBadge &&
+                          formSettings.quantityBadgePosition !==
+                            "structured" && (
+                            <FormLayout.Group>
+                              <RangeSlider
+                                label="Badge width (px)"
+                                value={formSettings.quantityBadgeWidth}
+                                onChange={(value) =>
+                                  handleSettingChange(
+                                    "quantityBadgeWidth",
+                                    value,
+                                  )
+                                }
+                                min={16}
+                                max={Math.min(formSettings.width, 60)}
+                                output
+                                helpText={
+                                  formSettings.quantityBadgePosition ===
+                                  "structured"
+                                    ? "Badge appears in corner for structured layout"
+                                    : `Maximum width is limited to button width (${formSettings.width}px)`
+                                }
+                              />
+                              <RangeSlider
+                                label="Badge height (px)"
+                                value={formSettings.quantityBadgeHeight}
+                                onChange={(value) =>
+                                  handleSettingChange(
+                                    "quantityBadgeHeight",
+                                    value,
+                                  )
+                                }
+                                min={16}
+                                max={Math.min(formSettings.height, 60)}
+                                output
+                                helpText={
+                                  formSettings.quantityBadgePosition ===
+                                  "structured"
+                                    ? "Badge appears in corner for structured layout"
+                                    : `Maximum height is limited to button height (${formSettings.height}px)`
+                                }
+                              />
+                              <RangeSlider
+                                label="Badge border radius (%)"
+                                value={formSettings.quantityBadgeRadius}
+                                onChange={(value) =>
+                                  handleSettingChange(
+                                    "quantityBadgeRadius",
+                                    value,
+                                  )
+                                }
+                                min={0}
+                                max={100}
+                                output
+                                helpText="100% will make the badge fully circular."
+                              />
+                            </FormLayout.Group>
+                          )}
+
+                        {/* Badge Position - Only for Normal Layout */}
+                        {formSettings.quantityBadgePosition !==
+                          "structured" && (
                           <FormLayout.Group>
-                            <Text variant="bodyMd" as="p" color="subdued">
-                              Badge background color
-                            </Text>
-                            <TextField
-                              type="color"
-                              value={formSettings.quantityBackgroundColor}
+                            <Select
+                              label="Badge Position"
+                              options={[
+                                {
+                                  label: "Top Right Corner",
+                                  value: "top-right",
+                                },
+                                { label: "Top Left Corner", value: "top-left" },
+                                {
+                                  label: "Bottom Right Corner",
+                                  value: "bottom-right",
+                                },
+                                {
+                                  label: "Bottom Left Corner",
+                                  value: "bottom-left",
+                                },
+                              ]}
+                              value={formSettings.quantityBadgePosition}
                               onChange={(value) =>
                                 handleSettingChange(
-                                  "quantityBackgroundColor",
+                                  "quantityBadgePosition",
                                   value,
                                 )
                               }
-                            />
-                            <Text variant="bodyMd" as="p" color="subdued">
-                              Badge text color
-                            </Text>
-                            <TextField
-                              type="color"
-                              value={formSettings.quantityTextColor}
-                              onChange={(value) =>
-                                handleSettingChange("quantityTextColor", value)
-                              }
+                              helpText="Choose where the quantity badge appears on the button."
                             />
                           </FormLayout.Group>
                         )}
+
+                        {/* Structured Layout Notice */}
+                        {formSettings.quantityBadgePosition ===
+                          "structured" && (
+                          <Banner status="info">
+                            <p>
+                              Quantity badge is not available in structured
+                              layout. The layout automatically displays items
+                              count and pricing in a professional two-section
+                              design.
+                            </p>
+                          </Banner>
+                        )}
                       </FormLayout>
                     </Card>
-
+                    {/* Structured Layout Settings - Only shown when structured layout is selected */}
+                    {formSettings.quantityBadgePosition === "structured" && (
+                      <Card sectioned title="Structured Layout Settings">
+                        <FormLayout>
+                          <FormLayout.Group>
+                            <TextField
+                              label="Top Section Background Color"
+                              type="color"
+                              value={formSettings.structuredTopSectionBgColor}
+                              onChange={(value) =>
+                                handleSettingChange(
+                                  "structuredTopSectionBgColor",
+                                  value,
+                                )
+                              }
+                              helpText="Background color for the items count section."
+                            />
+                            <TextField
+                              label="Bottom Section Background Color"
+                              type="color"
+                              value={
+                                formSettings.structuredBottomSectionBgColor
+                              }
+                              onChange={(value) =>
+                                handleSettingChange(
+                                  "structuredBottomSectionBgColor",
+                                  value,
+                                )
+                              }
+                              helpText="Background color for the pricing section."
+                            />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField
+                              label="Items Text Color"
+                              type="color"
+                              value={formSettings.structuredItemsTextColor}
+                              onChange={(value) =>
+                                handleSettingChange(
+                                  "structuredItemsTextColor",
+                                  value,
+                                )
+                              }
+                              helpText="Color for the 'X ITEMS' text."
+                            />
+                            <TextField
+                              label="Price Text Color"
+                              type="color"
+                              value={formSettings.structuredPriceTextColor}
+                              onChange={(value) =>
+                                handleSettingChange(
+                                  "structuredPriceTextColor",
+                                  value,
+                                )
+                              }
+                              helpText="Color for the price text."
+                            />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <Select
+                              label="Currency Symbol"
+                              options={[
+                                { label: "Bangladeshi Taka (৳)", value: "৳" },
+                                { label: "US Dollar ($)", value: "$" },
+                                { label: "Euro (€)", value: "€" },
+                                { label: "British Pound (£)", value: "£" },
+                                { label: "Japanese Yen (¥)", value: "¥" },
+                                { label: "Canadian Dollar (C$)", value: "C$" },
+                                {
+                                  label: "Australian Dollar (A$)",
+                                  value: "A$",
+                                },
+                              ]}
+                              value={formSettings.structuredCurrencySymbol}
+                              onChange={(value) =>
+                                handleSettingChange(
+                                  "structuredCurrencySymbol",
+                                  value,
+                                )
+                              }
+                              helpText="Choose the currency symbol to display."
+                            />
+                          </FormLayout.Group>
+                        </FormLayout>
+                      </Card>
+                    )}
                     <Card sectioned title="Pricing Display">
                       <FormLayout>
                         <Checkbox
@@ -454,15 +769,25 @@ const Index = () => {
 
                         {formSettings.showPricing && (
                           <FormLayout.Group>
-                            <Text variant="bodyMd" as="p" color="subdued">
-                              Price text color
-                            </Text>
                             <TextField
                               type="color"
+                              label="Price text color"
                               value={formSettings.pricingTextColor}
                               onChange={(value) =>
                                 handleSettingChange("pricingTextColor", value)
                               }
+                            />
+                            <TextField
+                              type="color"
+                              label="Price background color"
+                              value={formSettings.priceBackgroundColor}
+                              onChange={(value) =>
+                                handleSettingChange(
+                                  "priceBackgroundColor",
+                                  value,
+                                )
+                              }
+                              helpText="Set to transparent for no background."
                             />
                             <RangeSlider
                               label="Price font size (px)"
@@ -491,70 +816,7 @@ const Index = () => {
                         )}
                       </FormLayout>
                     </Card>
-
-                    <Card sectioned title="Custom CSS">
-                      <FormLayout>
-                        <TextField
-                          label="Custom CSS"
-                          value={formSettings.customCSS || ""}
-                          onChange={(value) =>
-                            handleSettingChange("customCSS", value)
-                          }
-                          multiline={4}
-                          placeholder="/* Add your custom CSS here */"
-                          helpText="Add custom CSS to further customize the sticky cart appearance. This will be injected after the default styles."
-                        />
-                      </FormLayout>
-                    </Card>
-                  </BlockStack>
-                </Grid.Cell>
-
-                {/* Right Column - Live Preview & Icon/Animation */}
-                <Grid.Cell
-                  order={{ xs: 2, sm: 1, md: 1, lg: 1, xl: 1 }}
-                  columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}
-                  className="preview-section"
-                >
-                  <BlockStack gap="400">
-                    <div
-                      style={{
-                        position: "sticky",
-                        top: 0,
-                        zIndex: 10,
-                        background: "white",
-                      }}
-                    >
-                      <Card
-                        sectioned
-                        title={
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            <span>Live preview</span>
-                            <div
-                              style={{
-                                fontSize: "12px",
-                                padding: "2px 8px",
-                                backgroundColor: "#f0f8ff",
-                                color: "#0066cc",
-                                borderRadius: "12px",
-                                fontWeight: "500",
-                              }}
-                            >
-                              Sticky
-                            </div>
-                          </div>
-                        }
-                      >
-                        <StickyCartPreview formSettings={formSettings} />
-                      </Card>
-                    </div>
-
-                    <Card sectioned title="Icon & animation">
+                    <Card sectioned title="Icon & Animation">
                       <FormLayout>
                         <Select
                           label="Icon type"
@@ -567,7 +829,7 @@ const Index = () => {
                         />
 
                         {formSettings.selectedIcon === "custom" && (
-                          <BlockStack gap="400">
+                          <BlockStack gap={{ xs: "400", sm: "400", md: "500" }}>
                             {/* Upload Section */}
                             <div>
                               <Text variant="bodyMd" as="p" fontWeight="medium">
@@ -649,6 +911,43 @@ const Index = () => {
                                 <p>{uploadError}</p>
                               </Banner>
                             )}
+
+                            {/* Custom Icon Dimensions */}
+                            <div>
+                              <Text variant="bodyMd" as="p" fontWeight="medium">
+                                Custom Icon Dimensions
+                              </Text>
+                              <FormLayout.Group>
+                                <RangeSlider
+                                  label="Icon width (px)"
+                                  value={formSettings.customIconWidth}
+                                  onChange={(value) =>
+                                    handleSettingChange(
+                                      "customIconWidth",
+                                      value,
+                                    )
+                                  }
+                                  min={20}
+                                  max={100}
+                                  output
+                                  helpText="Set the width of your custom icon."
+                                />
+                                <RangeSlider
+                                  label="Icon height (px)"
+                                  value={formSettings.customIconHeight}
+                                  onChange={(value) =>
+                                    handleSettingChange(
+                                      "customIconHeight",
+                                      value,
+                                    )
+                                  }
+                                  min={20}
+                                  max={100}
+                                  output
+                                  helpText="Set the height of your custom icon."
+                                />
+                              </FormLayout.Group>
+                            </div>
                           </BlockStack>
                         )}
 
@@ -671,35 +970,58 @@ const Index = () => {
                         />
                       </FormLayout>
                     </Card>
+                    <Card sectioned title="Custom CSS">
+                      <FormLayout>
+                        <TextField
+                          label="Custom CSS"
+                          value={formSettings.customCSS || ""}
+                          onChange={(value) =>
+                            handleSettingChange("customCSS", value)
+                          }
+                          multiline={4}
+                          placeholder="/* Add your custom CSS here */"
+                          helpText="Add custom CSS to further customize the sticky cart appearance. This will be injected after the default styles."
+                        />
+                      </FormLayout>
+                    </Card>
                   </BlockStack>
-                </Grid.Cell>
-
-                {/* Below the tab section - Full width (one column) */}
-                <Grid.Cell
-                  columnSpan={{ xs: 12, sm: 12, md: 12, lg: 12, xl: 12 }}
-                >
-                  <PageActions
-                    primaryAction={{
-                      content: "Save settings",
-                      submit: true,
-                      loading: isLoading,
-                      disabled: !isDirty || isLoading || !isFormValid(),
-                    }}
-                    secondaryActions={[
-                      {
-                        content: "Reset",
-                        onAction: handleReset,
-                        disabled: !isDirty,
-                      },
-                    ]}
-                  />
                 </Grid.Cell>
               </Grid>
 
+              <PageActions
+                primaryAction={{
+                  content: "Save settings",
+                  submit: true,
+                  loading: isLoading,
+                  disabled: !isDirty || isLoading || !isFormValid(),
+                }}
+                secondaryActions={[
+                  {
+                    content: "Reset",
+                    onAction: handleReset,
+                    disabled: !isDirty,
+                  },
+                ]}
+              />
+
               {/* Hidden fields */}
-              {Object.entries(formSettings).map(([key, value]) => (
-                <input key={key} type="hidden" name={key} value={value || ""} />
-              ))}
+              {Object.entries(formSettings).map(([key, value]) => {
+                // Handle different value types properly
+                let displayValue = value;
+                if (typeof value === "boolean") {
+                  displayValue = value.toString();
+                } else if (value === null || value === undefined) {
+                  displayValue = "";
+                }
+                return (
+                  <input
+                    key={key}
+                    type="hidden"
+                    name={key}
+                    value={displayValue}
+                  />
+                );
+              })}
             </Form>
           </Layout.Section>
         </Layout>

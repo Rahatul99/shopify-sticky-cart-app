@@ -4,6 +4,7 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
+import { Box } from "@shopify/polaris";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -96,7 +97,9 @@ export default function App() {
         </Link>
         <Link to="/app/install-script">Install Script</Link>
       </NavMenu>
-      <Outlet />
+      <Box style={{ padding: 10 }}>
+        <Outlet />
+      </Box>
     </AppProvider>
   );
 }

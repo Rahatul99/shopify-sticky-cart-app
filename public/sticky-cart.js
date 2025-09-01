@@ -118,10 +118,17 @@
     height: 80,
     quantityBackgroundColor: "#ff0000",
     quantityTextColor: "#ffffff",
+    quantityBadgeWidth: 24,
+    quantityBadgeHeight: 24,
+    quantityBadgeRadius: 50,
     showQuantityBadge: true,
     selectedIcon: "cart",
     uploadedIconData: null,
     uploadedIconType: null,
+    customIconWidth: 50,
+    customIconHeight: 50,
+    quantityBadgePosition: "top-right",
+    priceBackgroundColor: "transparent",
     deviceVisibility: "all",
     enableHoverAnimation: true,
     animationType: "bounce",
@@ -144,7 +151,7 @@
     return positions[position] || positions["bottom-right"];
   };
 
-  const getIconHTML = (iconType, uploadedIconData) => {
+  const getIconHTML = (iconType, uploadedIconData, customIconWidth = 24, customIconHeight = 24) => {
     const icons = {
       cart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
         <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -159,7 +166,7 @@
     
     // Handle uploaded icon first (priority over custom URL)
     if (iconType === "custom" && uploadedIconData) {
-      return `<img src="${uploadedIconData}" alt="cart" style="width:24px;height:24px;object-fit:contain;" />`;
+      return `<img src="${uploadedIconData}" alt="cart" style="width:${customIconWidth}px;height:${customIconHeight}px;object-fit:contain;" />`;
     }
     
     return icons[iconType] || icons.cart;
@@ -174,6 +181,46 @@
       default:
         return "";
     }
+  };
+
+  const getMobileResponsiveCSS = () => {
+    return `
+      /* Mobile responsive adjustments for sticky cart */
+      @media (max-width: 767px) {
+        #sticky-cart-widget {
+          /* Ensure proper positioning on mobile */
+          position: fixed !important;
+          z-index: 999999 !important;
+        }
+        
+        /* Adjust positioning for mobile devices */
+        #sticky-cart-widget[style*="bottom-right"] {
+          right: 15px !important;
+          bottom: 15px !important;
+        }
+        
+        #sticky-cart-widget[style*="bottom-left"] {
+          left: 15px !important;
+          bottom: 15px !important;
+        }
+        
+        #sticky-cart-widget[style*="top-right"] {
+          right: 15px !important;
+          top: 15px !important;
+        }
+        
+        #sticky-cart-widget[style*="top-left"] {
+          left: 15px !important;
+          top: 15px !important;
+        }
+        
+        /* Ensure the widget doesn't interfere with mobile navigation */
+        #sticky-cart-widget .sticky-cart-button {
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
+        }
+      }
+    `;
   };
 
   const getAnimationCSS = (animationType, enabled) => {
@@ -218,7 +265,7 @@
   const createStickyCartHTML = (settings, cartData) => {
     const { item_count = 0, total_price = 0 } = cartData;
     const positionStyles = getPositionStyles(settings.cartPosition);
-    const iconHTML = getIconHTML(settings.selectedIcon, settings.uploadedIconData);
+    const iconHTML = getIconHTML(settings.selectedIcon, settings.uploadedIconData, settings.customIconWidth, settings.customIconHeight);
     
     // Fixed border radius calculation
     const getBorderRadius = () => {
@@ -227,6 +274,60 @@
       if (radius >= 100) return "50%";
       
       const minSide = Math.min(settings.width, settings.height);
+      const computedRadius = (radius / 100) * (minSide / 2);
+      return `${computedRadius}px`;
+    };
+    
+    // Get quantity badge position styles
+    const getQuantityBadgePosition = () => {
+      const positions = {
+        "top-right": "top: -5px; right: -5px;",
+        "top-left": "top: -5px; left: -5px;",
+        "bottom-right": "bottom: -5px; right: -5px;",
+        "bottom-left": "bottom: -5px; left: -5px;",
+        "structured": "top: -5px; right: -5px;",
+      };
+      return positions[settings.quantityBadgePosition] || positions["top-right"];
+    };
+
+    // Check if badge should use full button width
+    const shouldUseFullButtonWidth = () => {
+      return false; // No longer needed with simplified options
+    };
+    
+    // Check if using structured layout
+    const isStructuredLayout = () => {
+      return settings.quantityBadgePosition === "structured";
+    };
+    
+    // Get badge width based on position
+    const getBadgeWidth = () => {
+      if (shouldUseFullButtonWidth()) {
+        return `${settings.width}px`;
+      }
+      return `${settings.quantityBadgeWidth}px`;
+    };
+    
+    // Get badge height based on position
+    const getBadgeHeight = () => {
+      if (shouldUseFullButtonWidth()) {
+        return `${settings.quantityBadgeHeight}px`;
+      }
+      return `${settings.quantityBadgeHeight}px`;
+    };
+    
+    // Calculate badge border radius
+    const getBadgeBorderRadius = () => {
+      const radius = settings.quantityBadgeRadius || 50;
+      if (radius === 0) return "0px";
+      if (radius >= 100) return "50%";
+      
+      let minSide;
+      if (shouldUseFullButtonWidth()) {
+        minSide = Math.min(settings.width, settings.quantityBadgeHeight || 24);
+      } else {
+        minSide = Math.min(settings.quantityBadgeWidth || 24, settings.quantityBadgeHeight || 24);
+      }
       const computedRadius = (radius / 100) * (minSide / 2);
       return `${computedRadius}px`;
     };
@@ -261,19 +362,93 @@
           position: relative;
           flex-direction: column;
         ">
-          ${iconHTML}
-          ${
-            settings.showQuantityBadge
-              ? `
+          ${isStructuredLayout() ? `
+            <!-- Structured Layout: Two sections -->
+            <div style="
+              position: relative;
+              width: 100%;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              overflow: hidden;
+              border-radius: ${getBorderRadius()};
+            ">
+              <!-- Top Section - Items Count -->
+              <div style="
+                flex: 1;
+                background-color: ${settings.structuredTopSectionBgColor || "#6b7280"};
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 8px;
+                position: relative;
+              ">
+                ${iconHTML}
+                <div class="structured-items-text" style="
+                  font-size: 10px;
+                  font-weight: bold;
+                  color: ${settings.structuredItemsTextColor || "#fbbf24"};
+                  margin-top: 4px;
+                  text-align: center;
+                ">
+                  ${item_count} ITEMS
+                </div>
+              </div>
+              
+              <!-- Bottom Section - Pricing -->
+              <div style="
+                flex: 1;
+                background-color: ${settings.structuredBottomSectionBgColor || "#f9fafb"};
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 8px;
+                font-size: ${settings.pricingFontSize}px;
+                font-weight: ${settings.pricingFontWeight};
+                color: ${settings.structuredPriceTextColor || "#374151"};
+              ">
+                <span style="font-size: 12px;">${settings.structuredCurrencySymbol || "৳"}</span>
+                <span class="structured-price-text" style="margin-left: 2px;">${(total_price / 100).toLocaleString()}</span>
+              </div>
+            </div>
+          ` : `
+            <!-- Standard Layout -->
+            <div style="
+              position: relative;
+              width: 100%;
+              height: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-direction: column;
+            ">
+              ${iconHTML}
+              ${settings.showPricing ? `
+                <div class="cart-price" style="
+                  margin-top: 4px;
+                  font-size: ${settings.pricingFontSize}px;
+                  font-weight: ${settings.pricingFontWeight};
+                  color: ${settings.pricingTextColor};
+                  background: ${settings.priceBackgroundColor !== "transparent" ? settings.priceBackgroundColor : "transparent"};
+                  padding: ${settings.priceBackgroundColor !== "transparent" ? "4px 8px" : "0"};
+                  border-radius: ${settings.priceBackgroundColor !== "transparent" ? "4px" : "0"};
+                ">
+                  ${priceFormatted}
+                </div>
+              ` : ""}
+            </div>
+          `}
+          
+          ${(settings.showQuantityBadge && !isStructuredLayout()) ? `
             <div class="quantity-badge" style="
               position: absolute;
-              top: -5px;
-              right: -5px;
+              ${getQuantityBadgePosition()}
               background-color: ${settings.quantityBackgroundColor};
               color: ${settings.quantityTextColor};
-              border-radius: 50%;
-              width: 24px;
-              height: 24px;
+              border-radius: ${getBadgeBorderRadius()};
+              width: ${getBadgeWidth()};
+              height: ${getBadgeHeight()};
               display: ${item_count > 0 ? "flex" : "none"};
               align-items: center;
               justify-content: center;
@@ -283,24 +458,7 @@
             ">
               ${item_count}
             </div>
-          `
-              : ""
-          }
-          ${
-            settings.showPricing
-              ? `
-            <div class="cart-price" style="
-              margin-top: 4px;
-              font-size: ${settings.pricingFontSize}px;
-              font-weight: ${settings.pricingFontWeight};
-              color: ${settings.pricingTextColor};
-              background: transparent;
-            ">
-              ${priceFormatted}
-            </div>
-          `
-              : ""
-          }
+          ` : ""}
         </div>
       </div>
     `;
@@ -319,6 +477,7 @@
     style.textContent = `
       ${getDeviceVisibilityCSS(settings.deviceVisibility)}
       ${getAnimationCSS(settings.animationType, settings.enableHoverAnimation)}
+      ${getMobileResponsiveCSS()}
       
       #sticky-cart-widget:hover .sticky-cart-button {
         transform: scale(1.05);
@@ -359,11 +518,29 @@
 
   const updateCartCount = async () => {
     const cartData = await fetchCartData();
+    const settings = await fetchStickyCartSettings();
     const quantityBadge = document.querySelector(
       "#sticky-cart-widget .quantity-badge",
     );
     const cartPrice = document.querySelector("#sticky-cart-widget .cart-price");
+    
+    // For structured layout
+    const structuredItemsText = document.querySelector(
+      "#sticky-cart-widget .structured-items-text",
+    );
+    const structuredPriceText = document.querySelector(
+      "#sticky-cart-widget .structured-price-text",
+    );
 
+    console.log("[Sticky Cart] Updating cart data:", {
+      item_count: cartData.item_count,
+      total_price: cartData.total_price,
+      isStructured: settings?.quantityBadgePosition === "structured",
+      structuredItemsText: !!structuredItemsText,
+      structuredPriceText: !!structuredPriceText
+    });
+
+    // Update quantity badge (non-structured layout)
     if (quantityBadge && cartData.item_count > 0) {
       quantityBadge.textContent = cartData.item_count;
       quantityBadge.style.display = "flex";
@@ -371,6 +548,7 @@
       quantityBadge.style.display = cartData.item_count > 0 ? "flex" : "none";
     }
 
+    // Update cart price (non-structured layout)
     if (cartPrice) {
       const priceFormatted = (cartData.total_price / 100).toLocaleString(
         undefined,
@@ -381,6 +559,17 @@
         },
       );
       cartPrice.textContent = priceFormatted;
+    }
+
+    // Update structured layout elements
+    if (structuredItemsText) {
+      structuredItemsText.textContent = `${cartData.item_count} ITEMS`;
+      console.log("[Sticky Cart] Updated structured items text:", `${cartData.item_count} ITEMS`);
+    }
+    
+    if (structuredPriceText && settings) {
+      structuredPriceText.textContent = (cartData.total_price / 100).toLocaleString();
+      console.log("[Sticky Cart] Updated structured price text:", (cartData.total_price / 100).toLocaleString());
     }
 
     const widget = document.getElementById("sticky-cart-widget");
@@ -398,6 +587,15 @@
       }
 
       const cartData = await fetchCartData();
+
+      console.log("[Sticky Cart] Initializing with:", {
+        settings: settings.quantityBadgePosition,
+        cartData: {
+          item_count: cartData.item_count,
+          total_price: cartData.total_price
+        },
+        isStructured: settings.quantityBadgePosition === "structured"
+      });
 
       const existingWidget = document.getElementById("sticky-cart-widget");
       if (existingWidget) {
@@ -432,7 +630,9 @@
           return response;
         });
       };
-    } catch (error) {}
+    } catch (error) {
+      console.error("[Sticky Cart] Initialization error:", error);
+    }
   };
 
   const ready = (fn) => {

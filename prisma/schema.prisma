@@ -18,38 +18,50 @@ model Shop {
 }
 
 model StickyCartSettings {
-  id                      String   @id @default(cuid())
-  shopId                  String   @unique
-  enabled                 Boolean  @default(true)
-  cartPosition            String   @default("bottom-right")
-  backgroundColor         String   @default("#000000")
-  iconColor               String   @default("#ffffff")
-  buttonRadius            Int      @default(50)
-  width                   Int      @default(80)
-  height                  Int      @default(80)
-  quantityBackgroundColor String   @default("#ff0000")
-  quantityTextColor       String   @default("#ffffff")
-  showQuantityBadge       Boolean  @default(true)
-  selectedIcon            String   @default("cart")
-  uploadedIconData        String?  // Base64 encoded icon data
-  uploadedIconType        String?  // MIME type of uploaded icon
-  deviceVisibility        String   @default("all")
-  enableHoverAnimation    Boolean  @default(true)
-  animationType           String   @default("bounce")
-  showPricing            Boolean  @default(true)
-  pricingTextColor       String   @default("#ffffff")
-  pricingFontSize        Int      @default(12)
-  pricingFontWeight      String   @default("500")
-  customCSS              String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  shop                    Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id                             String   @id @default(cuid())
+  shopId                         String   @unique
+  enabled                        Boolean  @default(true)
+  cartPosition                   String   @default("bottom-right")
+  backgroundColor                String   @default("#000000")
+  iconColor                      String   @default("#ffffff")
+  buttonRadius                   Int      @default(50)
+  width                          Int      @default(80)
+  height                         Int      @default(80)
+  quantityBackgroundColor        String   @default("#ff0000")
+  quantityTextColor              String   @default("#ffffff")
+  quantityBadgeWidth             Int      @default(24)
+  quantityBadgeHeight            Int      @default(24)
+  quantityBadgeRadius            Int      @default(50)
+  showQuantityBadge              Boolean  @default(true)
+  selectedIcon                   String   @default("cart")
+  uploadedIconData               String?
+  uploadedIconType               String?
+  customIconWidth                Int      @default(50)
+  customIconHeight               Int      @default(50)
+  quantityBadgePosition          String   @default("top-right")
+  priceBackgroundColor           String   @default("transparent")
+  deviceVisibility               String   @default("all")
+  enableHoverAnimation           Boolean  @default(true)
+  animationType                  String   @default("bounce")
+  showPricing                    Boolean  @default(true)
+  pricingTextColor               String   @default("#ffffff")
+  pricingFontSize                Int      @default(12)
+  pricingFontWeight              String   @default("500")
+  customCSS                      String?
+  structuredTopSectionBgColor    String   @default("#6b7280")
+  structuredBottomSectionBgColor String   @default("#f9fafb")
+  structuredItemsTextColor       String   @default("#fbbf24")
+  structuredPriceTextColor       String   @default("#374151")
+  structuredCurrencySymbol       String   @default("৳")
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  shop                           Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@map("sticky_cart_settings")
 }
 
 model Session {
-  id               String   @id
+  id               String    @id
   shop             String
   state            String?
   isOnline         Boolean?
@@ -57,15 +69,14 @@ model Session {
   accessToken      String?
   expires          DateTime?
   onlineAccessInfo Json?
-  userId           String?  // optional
-  firstName        String?  
-  lastName         String?  
-  email            String?  
-  accountOwner     Boolean? @default(false)
-  locale           String?  
-  collaborator     Boolean? @default(false)
-  emailVerified    Boolean? @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  userId           String?
+  firstName        String?
+  lastName         String?
+  email            String?
+  accountOwner     Boolean?  @default(false)
+  locale           String?
+  collaborator     Boolean?  @default(false)
+  emailVerified    Boolean?  @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
-
