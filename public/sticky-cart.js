@@ -1,6 +1,43 @@
 (function () {
   "use strict";
 
+  // =============================================================================
+  // CONSTANTS & CONFIGURATION
+  // =============================================================================
+  
+  const CONFIG = {
+    CACHE_TTL_MS: 5 * 60 * 1000,
+    APP_URL_TIMEOUT: 2000,
+    POLL_INTERVAL: 50,
+    FONT_SIZE_ADJUSTMENT_DELAY: 50,
+    RESIZE_DEBOUNCE_DELAY: 250,
+    WIDGET_ID: "sticky-cart-widget",
+    STYLE_ID: "sticky-cart-styles",
+    MIN_FONT_SIZE_RATIO: 0.5,
+    MIN_ABSOLUTE_FONT_SIZE: 6,
+    DEFAULT_ICON_SIZE: 24,
+  };
+
+  const CURRENCY_SYMBOLS = {
+    BDT: "৳", INR: "₹", PKR: "₨", LKR: "₨", NPR: "₨", MMK: "Ks",
+  };
+
+  const ICONS = {
+    cart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+    </svg>`,
+    bag: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 15a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v12z"/>
+    </svg>`,
+    basket: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.21 9l-4.38-6.56a.993.993 0 0 0-.83-.42c-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27c.03-.09.04-.18.04-.27 0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2-.9-2-2-2z"/>
+    </svg>`,
+  };
+
+  // =============================================================================
+  // UTILITY FUNCTIONS
+  // =============================================================================
+
   const getAppUrl = () => {
     if (window.stickyCartAppUrl) return window.stickyCartAppUrl;
     try {
@@ -25,7 +62,8 @@
       return "";
     }
   };
-  const waitForAppUrl = async (timeoutMs = 2000) => {
+
+  const waitForAppUrl = async (timeoutMs = CONFIG.APP_URL_TIMEOUT) => {
     const start = Date.now();
     return new Promise((resolve) => {
       const tick = () => {
@@ -38,7 +76,7 @@
           }
           resolve(url || "");
         } else {
-          setTimeout(tick, 50);
+          setTimeout(tick, CONFIG.POLL_INTERVAL);
         }
       };
       tick();
@@ -58,14 +96,15 @@
       const response = await fetch("/cart.js");
       return await response.json();
     } catch (error) {
-      return { item_count: 0 };
+      return { item_count: 0, total_price: 0 };
     }
   };
 
   const fetchStickyCartSettings = async () => {
     const shop = getShopDomain();
-    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const CACHE_TTL_MS = CONFIG.CACHE_TTL_MS;
     const storageKey = `stickyCartSettings:${shop}`;
+    
     // Try cache first
     try {
       const cachedRaw = window.localStorage.getItem(storageKey);
@@ -76,6 +115,7 @@
         }
       }
     } catch (_) {}
+    
     // Fallback to network
     try {
       const APP_URL = await waitForAppUrl();
@@ -137,6 +177,12 @@
     pricingFontSize: 12,
     pricingFontWeight: "500",
     customCSS: "",
+    // Structured layout settings
+    structuredTopSectionBgColor: "#6b7280",
+    structuredBottomSectionBgColor: "#f9fafb",
+    structuredItemsTextColor: "#fbbf24",
+    structuredPriceTextColor: "#374151",
+    structuredCurrencySymbol: "৳",
   });
 
   const getPositionStyles = (position) => {
@@ -152,24 +198,12 @@
   };
 
   const getIconHTML = (iconType, uploadedIconData, customIconWidth = 24, customIconHeight = 24) => {
-    const icons = {
-      cart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-      </svg>`,
-      bag: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 15a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v12z"/>
-      </svg>`,
-      basket: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M17.21 9l-4.38-6.56a.993.993 0 0 0-.83-.42c-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27c.03-.09.04-.18.04-.27 0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2-.9-2-2-2z"/>
-      </svg>`,
-    };
-    
     // Handle uploaded icon first (priority over custom URL)
     if (iconType === "custom" && uploadedIconData) {
       return `<img src="${uploadedIconData}" alt="cart" style="width:${customIconWidth}px;height:${customIconHeight}px;object-fit:contain;" />`;
     }
     
-    return icons[iconType] || icons.cart;
+    return ICONS[iconType] || ICONS.cart;
   };
 
   const getDeviceVisibilityCSS = (visibility) => {
@@ -188,12 +222,10 @@
       /* Mobile responsive adjustments for sticky cart */
       @media (max-width: 767px) {
         #sticky-cart-widget {
-          /* Ensure proper positioning on mobile */
           position: fixed !important;
           z-index: 999999 !important;
         }
         
-        /* Adjust positioning for mobile devices */
         #sticky-cart-widget[style*="bottom-right"] {
           right: 15px !important;
           bottom: 15px !important;
@@ -214,7 +246,6 @@
           top: 15px !important;
         }
         
-        /* Ensure the widget doesn't interfere with mobile navigation */
         #sticky-cart-widget .sticky-cart-button {
           touch-action: manipulation;
           -webkit-tap-highlight-color: transparent;
@@ -262,12 +293,130 @@
     return animations[animationType] || "";
   };
 
+  const isSymbolPrefix = (currency, locale) => {
+    try {
+      const formatter = new Intl.NumberFormat(locale, { style: "currency", currency });
+      const parts = formatter.formatToParts(0);
+      return parts[0].type === "currency";
+    } catch {
+      return true; // Default to prefix
+    }
+  };
+
+  const getCurrencyLiteral = (currency, locale) => {
+    try {
+      const formatter = new Intl.NumberFormat(locale, { style: "currency", currency });
+      const parts = formatter.formatToParts(0);
+      const literalPart = parts.find(p => p.type === "literal");
+      return literalPart ? literalPart.value : "";
+    } catch {
+      return "";
+    }
+  };
+
+  const getShopCurrencySymbol = (currency = "USD") => {
+    if (CURRENCY_SYMBOLS[currency]) {
+      return CURRENCY_SYMBOLS[currency];
+    }
+  
+    const locale = window.Shopify?.locale || 
+                   document.documentElement.lang || 
+                   navigator.language || 
+                   "en-US";
+  
+    try {
+      const formatted = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(0);
+  
+      const symbol = formatted.replace(/[0-9\s.,\u00A0]/g, "");
+      return symbol || currency;
+    } catch {
+      return currency;
+    }
+  };
+
+  const formatCurrency = (amount, currency, locale) => {
+    const symbol = getShopCurrencySymbol(currency);
+    const literal = getCurrencyLiteral(currency, locale);
+    const numberFormatter = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const formattedNumber = numberFormatter.format(amount);
+    
+    if (isSymbolPrefix(currency, locale)) {
+      return symbol + literal + formattedNumber;
+    } else {
+      return formattedNumber + literal + symbol;
+    }
+  };
+
+  // Font size calculation function
+  const calculateOptimalFontSize = (element, originalFontSize, maxWidth) => {
+    if (!element || !maxWidth) return originalFontSize;
+    
+    const minFontSize = Math.max(CONFIG.MIN_ABSOLUTE_FONT_SIZE, Math.floor(originalFontSize * CONFIG.MIN_FONT_SIZE_RATIO));
+    let fontSize = originalFontSize;
+    
+    // Store original content to test with
+    const testElement = element.cloneNode(true);
+    testElement.style.position = 'absolute';
+    testElement.style.visibility = 'hidden';
+    testElement.style.whiteSpace = 'nowrap';
+    element.parentElement.appendChild(testElement);
+    
+    while (fontSize >= minFontSize) {
+      testElement.style.fontSize = `${fontSize}px`;
+      
+      if (testElement.scrollWidth <= maxWidth) {
+        element.parentElement.removeChild(testElement);
+        return fontSize;
+      }
+      
+      fontSize -= 1;
+    }
+    
+    element.parentElement.removeChild(testElement);
+    return minFontSize;
+  };
+
+  // Better price font size adjustment
+  const adjustPriceFontSize = (settings) => {
+    const widget = document.getElementById(CONFIG.WIDGET_ID);
+    if (!widget) return;
+
+    const isStructured = settings.quantityBadgePosition === "structured";
+    const originalFontSize = parseInt(settings.pricingFontSize) || 12;
+    
+    if (isStructured) {
+      const priceSection = widget.querySelector(".structured-price-section");
+      if (priceSection) {
+        const containerWidth = priceSection.clientWidth;
+        const maxWidth = Math.max(containerWidth - 16, 20);
+        const optimalSize = calculateOptimalFontSize(priceSection, originalFontSize, maxWidth);
+        priceSection.style.fontSize = `${optimalSize}px`;
+      }
+    } else {
+      const priceElement = widget.querySelector(".cart-price");
+      if (priceElement) {
+        const containerWidth = widget.clientWidth;
+        const maxWidth = Math.max(containerWidth - 16, 20);
+        const optimalSize = calculateOptimalFontSize(priceElement, originalFontSize, maxWidth);
+        priceElement.style.fontSize = `${optimalSize}px`;
+      }
+    }
+  };
+
   const createStickyCartHTML = (settings, cartData) => {
     const { item_count = 0, total_price = 0 } = cartData;
     const positionStyles = getPositionStyles(settings.cartPosition);
     const iconHTML = getIconHTML(settings.selectedIcon, settings.uploadedIconData, settings.customIconWidth, settings.customIconHeight);
     
-    // Fixed border radius calculation
+    // Border radius calculation
     const getBorderRadius = () => {
       const radius = settings.buttonRadius || 0;
       if (radius === 0) return "0px";
@@ -285,61 +434,36 @@
         "top-left": "top: -5px; left: -5px;",
         "bottom-right": "bottom: -5px; right: -5px;",
         "bottom-left": "bottom: -5px; left: -5px;",
-        "structured": "top: -5px; right: -5px;",
       };
       return positions[settings.quantityBadgePosition] || positions["top-right"];
     };
 
-    // Check if badge should use full button width
-    const shouldUseFullButtonWidth = () => {
-      return false; // No longer needed with simplified options
-    };
-    
-    // Check if using structured layout
-    const isStructuredLayout = () => {
-      return settings.quantityBadgePosition === "structured";
-    };
-    
-    // Get badge width based on position
-    const getBadgeWidth = () => {
-      if (shouldUseFullButtonWidth()) {
-        return `${settings.width}px`;
-      }
-      return `${settings.quantityBadgeWidth}px`;
-    };
-    
-    // Get badge height based on position
-    const getBadgeHeight = () => {
-      if (shouldUseFullButtonWidth()) {
-        return `${settings.quantityBadgeHeight}px`;
-      }
-      return `${settings.quantityBadgeHeight}px`;
-    };
-    
-    // Calculate badge border radius
     const getBadgeBorderRadius = () => {
       const radius = settings.quantityBadgeRadius || 50;
       if (radius === 0) return "0px";
       if (radius >= 100) return "50%";
       
-      let minSide;
-      if (shouldUseFullButtonWidth()) {
-        minSide = Math.min(settings.width, settings.quantityBadgeHeight || 24);
-      } else {
-        minSide = Math.min(settings.quantityBadgeWidth || 24, settings.quantityBadgeHeight || 24);
-      }
+      const minSide = Math.min(settings.quantityBadgeWidth || 24, settings.quantityBadgeHeight || 24);
       const computedRadius = (radius / 100) * (minSide / 2);
       return `${computedRadius}px`;
     };
     
-    const priceFormatted = (total_price / 100).toLocaleString(undefined, {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
+    const isStructuredLayout = () => {
+      return settings.quantityBadgePosition === "structured";
+    };
+    
+    const currency = cartData.currency || window.Shopify?.currency?.active || "USD";
+    const locale = window.Shopify?.locale || document.documentElement.lang || navigator.language || "en-US";
+    const priceFormatted = formatCurrency(total_price / 100, currency, locale);
+    const symbol = getShopCurrencySymbol(currency);
+    const literal = getCurrencyLiteral(currency, locale) === '\u00A0' ? '&nbsp;' : getCurrencyLiteral(currency, locale);
+    const formattedNumber = (total_price / 100).toLocaleString(locale, { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
     });
 
     return `
-      <div id="sticky-cart-widget" style="
+      <div id="${CONFIG.WIDGET_ID}" style="
         position: fixed;
         ${positionStyles}
         width: ${settings.width}px;
@@ -381,35 +505,40 @@
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                padding: 8px;
+                padding: 4px;
                 position: relative;
               ">
                 ${iconHTML}
                 <div class="structured-items-text" style="
-                  font-size: 10px;
+                  font-size: 9px;
                   font-weight: bold;
                   color: ${settings.structuredItemsTextColor || "#fbbf24"};
-                  margin-top: 4px;
+                  margin-top: 2px;
                   text-align: center;
+                  white-space: nowrap;
                 ">
                   ${item_count} ITEMS
                 </div>
               </div>
               
               <!-- Bottom Section - Pricing -->
-              <div style="
+              <div class="structured-price-section" style="
                 flex: 1;
                 background-color: ${settings.structuredBottomSectionBgColor || "#f9fafb"};
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 8px;
-                font-size: ${settings.pricingFontSize}px;
-                font-weight: ${settings.pricingFontWeight};
+                padding: 4px 6px;
+                font-size: ${settings.pricingFontSize || 12}px;
+                font-weight: ${settings.pricingFontWeight || "500"};
                 color: ${settings.structuredPriceTextColor || "#374151"};
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                line-height: 1;
               ">
-                <span style="font-size: 12px;">${settings.structuredCurrencySymbol || "৳"}</span>
-                <span class="structured-price-text" style="margin-left: 2px;">${(total_price / 100).toLocaleString()}</span>
+                <span>${symbol}</span>${literal ? `<span>${literal}</span>` : ''}
+                <span class="structured-price-text" style="${literal ? '' : 'margin-left: 2px;'}">${formattedNumber}</span>
               </div>
             </div>
           ` : `
@@ -422,17 +551,24 @@
               align-items: center;
               justify-content: center;
               flex-direction: column;
+              padding: 4px;
             ">
               ${iconHTML}
               ${settings.showPricing ? `
                 <div class="cart-price" style="
                   margin-top: 4px;
-                  font-size: ${settings.pricingFontSize}px;
-                  font-weight: ${settings.pricingFontWeight};
+                  font-size: ${settings.pricingFontSize || 12}px;
+                  font-weight: ${settings.pricingFontWeight || "500"};
                   color: ${settings.pricingTextColor};
                   background: ${settings.priceBackgroundColor !== "transparent" ? settings.priceBackgroundColor : "transparent"};
-                  padding: ${settings.priceBackgroundColor !== "transparent" ? "4px 8px" : "0"};
+                  padding: ${settings.priceBackgroundColor !== "transparent" ? "2px 4px" : "0"};
                   border-radius: ${settings.priceBackgroundColor !== "transparent" ? "4px" : "0"};
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  max-width: 100%;
+                  line-height: 1;
+                  text-align: center;
                 ">
                   ${priceFormatted}
                 </div>
@@ -447,14 +583,15 @@
               background-color: ${settings.quantityBackgroundColor};
               color: ${settings.quantityTextColor};
               border-radius: ${getBadgeBorderRadius()};
-              width: ${getBadgeWidth()};
-              height: ${getBadgeHeight()};
+              width: ${settings.quantityBadgeWidth || 24}px;
+              height: ${settings.quantityBadgeHeight || 24}px;
               display: ${item_count > 0 ? "flex" : "none"};
               align-items: center;
               justify-content: center;
-              font-size: 12px;
+              font-size: 11px;
               font-weight: bold;
               font-family: system-ui, -apple-system, sans-serif;
+              line-height: 1;
             ">
               ${item_count}
             </div>
@@ -465,7 +602,7 @@
   };
 
   const injectStyles = (settings) => {
-    const styleId = "sticky-cart-styles";
+    const styleId = CONFIG.STYLE_ID;
     let existingStyle = document.getElementById(styleId);
 
     if (existingStyle) {
@@ -479,14 +616,22 @@
       ${getAnimationCSS(settings.animationType, settings.enableHoverAnimation)}
       ${getMobileResponsiveCSS()}
       
-      #sticky-cart-widget:hover .sticky-cart-button {
+      #${CONFIG.WIDGET_ID}:hover .sticky-cart-button {
         transform: scale(1.05);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
       }
       
       .sticky-cart-button svg {
-        width: 24px;
-        height: 24px;
+        width: ${CONFIG.DEFAULT_ICON_SIZE}px;
+        height: ${CONFIG.DEFAULT_ICON_SIZE}px;
+      }
+      
+      /* Ensure price text never breaks */
+      #${CONFIG.WIDGET_ID} .cart-price,
+      #${CONFIG.WIDGET_ID} .structured-price-section {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
       }
       
       ${settings.customCSS || ""}
@@ -516,77 +661,79 @@
     window.location.href = "/cart";
   };
 
+  // Cart count update function
   const updateCartCount = async () => {
-    const cartData = await fetchCartData();
-    const settings = await fetchStickyCartSettings();
-    const quantityBadge = document.querySelector(
-      "#sticky-cart-widget .quantity-badge",
-    );
-    const cartPrice = document.querySelector("#sticky-cart-widget .cart-price");
-    
-    // For structured layout
-    const structuredItemsText = document.querySelector(
-      "#sticky-cart-widget .structured-items-text",
-    );
-    const structuredPriceText = document.querySelector(
-      "#sticky-cart-widget .structured-price-text",
-    );
+    try {
+      const [cartData, settings] = await Promise.all([
+        fetchCartData(),
+        fetchStickyCartSettings()
+      ]);
+      
+      const widget = document.getElementById(CONFIG.WIDGET_ID);
+      if (!widget) return;
+      
+      const isStructured = settings?.quantityBadgePosition === "structured";
+      const currency = cartData.currency || window.Shopify?.currency?.active || "USD";
+      const locale = window.Shopify?.locale || document.documentElement.lang || navigator.language || "en-US";
+      
+      // Update quantity badge (non-structured layout)
+      if (!isStructured) {
+        const quantityBadge = widget.querySelector(".quantity-badge");
+        if (quantityBadge && settings.showQuantityBadge) {
+          quantityBadge.textContent = cartData.item_count;
+          quantityBadge.style.display = cartData.item_count > 0 ? "flex" : "none";
+        }
 
-    console.log("[Sticky Cart] Updating cart data:", {
-      item_count: cartData.item_count,
-      total_price: cartData.total_price,
-      isStructured: settings?.quantityBadgePosition === "structured",
-      structuredItemsText: !!structuredItemsText,
-      structuredPriceText: !!structuredPriceText
-    });
+        // Update cart price (non-structured layout)
+        const cartPrice = widget.querySelector(".cart-price");
+        if (cartPrice && settings.showPricing) {
+          const priceFormatted = formatCurrency(cartData.total_price / 100, currency, locale);
+          cartPrice.textContent = priceFormatted;
+        }
+      } else {
+        // Update structured layout elements
+        const structuredItemsText = widget.querySelector(".structured-items-text");
+        if (structuredItemsText) {
+          structuredItemsText.textContent = `${cartData.item_count} ITEMS`;
+        }
+        
+        const structuredPriceText = widget.querySelector(".structured-price-text");
+        if (structuredPriceText) {
+          const formattedNumber = (cartData.total_price / 100).toLocaleString(locale, { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+          });
+          structuredPriceText.textContent = formattedNumber;
+        }
+      }
 
-    // Update quantity badge (non-structured layout)
-    if (quantityBadge && cartData.item_count > 0) {
-      quantityBadge.textContent = cartData.item_count;
-      quantityBadge.style.display = "flex";
-    } else if (quantityBadge) {
-      quantityBadge.style.display = cartData.item_count > 0 ? "flex" : "none";
-    }
+      // Always show widget regardless of item count
+      widget.style.display = "block";
 
-    // Update cart price (non-structured layout)
-    if (cartPrice) {
-      const priceFormatted = (cartData.total_price / 100).toLocaleString(
-        undefined,
-        {
-          style: "currency",
-          currency: "USD",
-          minimumFractionDigits: 2,
-        },
-      );
-      cartPrice.textContent = priceFormatted;
-    }
+      // Apply font size adjustment after DOM updates
+      setTimeout(() => {
+        adjustPriceFontSize(settings);
+      }, CONFIG.FONT_SIZE_ADJUSTMENT_DELAY);
 
-    // Update structured layout elements
-    if (structuredItemsText) {
-      structuredItemsText.textContent = `${cartData.item_count} ITEMS`;
-      console.log("[Sticky Cart] Updated structured items text:", `${cartData.item_count} ITEMS`);
-    }
-    
-    if (structuredPriceText && settings) {
-      structuredPriceText.textContent = (cartData.total_price / 100).toLocaleString();
-      console.log("[Sticky Cart] Updated structured price text:", (cartData.total_price / 100).toLocaleString());
-    }
-
-    const widget = document.getElementById("sticky-cart-widget");
-    if (widget) {
-      widget.style.display = cartData.item_count > 0 ? "block" : "block";
+    } catch (error) {
+      console.error("[Sticky Cart] Update error:", error);
     }
   };
 
   const initStickyCart = async () => {
     try {
+      console.log("[Sticky Cart] Starting initialization...");
+      
       const settings = await fetchStickyCartSettings();
+      console.log("[Sticky Cart] Settings fetched:", settings);
 
       if (!settings || !settings.enabled) {
+        console.log("[Sticky Cart] Widget disabled or settings not found");
         return;
       }
 
       const cartData = await fetchCartData();
+      console.log("[Sticky Cart] Cart data fetched:", cartData);
 
       console.log("[Sticky Cart] Initializing with:", {
         settings: settings.quantityBadgePosition,
@@ -597,7 +744,7 @@
         isStructured: settings.quantityBadgePosition === "structured"
       });
 
-      const existingWidget = document.getElementById("sticky-cart-widget");
+      const existingWidget = document.getElementById(CONFIG.WIDGET_ID);
       if (existingWidget) {
         existingWidget.remove();
       }
@@ -607,29 +754,18 @@
       const widgetHTML = createStickyCartHTML(settings, cartData);
       document.body.insertAdjacentHTML("beforeend", widgetHTML);
 
-      const widget = document.getElementById("sticky-cart-widget");
+      const widget = document.getElementById(CONFIG.WIDGET_ID);
       if (widget) {
         widget.addEventListener("click", openCart);
       }
 
-      document.addEventListener("cart:update", updateCartCount);
-      document.addEventListener("cart:refresh", updateCartCount);
+      // Apply font size adjustment after widget creation
+      setTimeout(() => {
+        adjustPriceFontSize(settings);
+      }, 100);
 
-      const originalFetch = window.fetch;
-      window.fetch = function (...args) {
-        const [url] = args;
+      console.log("[Sticky Cart] Initialization complete");
 
-        return originalFetch.apply(this, args).then((response) => {
-          if (
-            url.includes("/cart/add") ||
-            url.includes("/cart/update") ||
-            url.includes("/cart/change")
-          ) {
-            setTimeout(updateCartCount, 100);
-          }
-          return response;
-        });
-      };
     } catch (error) {
       console.error("[Sticky Cart] Initialization error:", error);
     }
@@ -643,13 +779,59 @@
     }
   };
 
+  // Initialize everything
   ready(() => {
     console.log("[Sticky Cart] DOM ready");
+    
+    // Set up event listeners for cart updates
+    document.addEventListener("cart:update", updateCartCount);
+    document.addEventListener("cart:refresh", updateCartCount);
+
+    // Intercept fetch requests to detect cart changes
+    const originalFetch = window.fetch;
+    window.fetch = function (...args) {
+      const [url] = args;
+
+      return originalFetch.apply(this, args).then((response) => {
+        if (
+          url.includes("/cart/add") ||
+          url.includes("/cart/update") ||
+          url.includes("/cart/change") ||
+          url.includes("/cart/clear")
+        ) {
+          setTimeout(updateCartCount, 100);
+        }
+        return response;
+      });
+    };
+
+    // Also listen for Shopify's built-in cart events
+    window.addEventListener('shopify:cart:update', updateCartCount);
+    
+    // Listen for theme-specific cart events (common patterns)
+    document.addEventListener('cart:changed', updateCartCount);
+    document.addEventListener('cart:updated', updateCartCount);
+    document.addEventListener('cart:item-added', updateCartCount);
+    document.addEventListener('cart:item-removed', updateCartCount);
+
+    // Initialize the sticky cart
     setTimeout(initStickyCart, 0);
   });
 
+  // Reinitialize on Shopify section events
   window.addEventListener("shopify:section:load", initStickyCart);
   window.addEventListener("shopify:section:reorder", initStickyCart);
+  
+  // Handle window resize to recalculate font sizes
+  let resizeTimeout;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(async () => {
+      const settings = await fetchStickyCartSettings();
+      if (settings) {
+        adjustPriceFontSize(settings);
+      }
+    }, CONFIG.RESIZE_DEBOUNCE_DELAY);
+  });
+
 })();
-
-
